@@ -35,6 +35,8 @@ const SETTING_KEYS = new Set([
   "showThinkingSummaries",
   "alwaysThinkingEnabled",
   "effortLevel",
+  "fastMode",
+  "ultracode",
   "disableDeepLinkRegistration",
   "env",
 ]);

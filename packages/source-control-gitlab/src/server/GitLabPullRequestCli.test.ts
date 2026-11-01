@@ -1002,6 +1002,7 @@ layer("GitLabPullRequestCli.layer", (it) => {
 
       const detail = yield* cli.getMergeRequestDetail({
         cwd: "/w",
+        host: "gitlab.internal",
         repository: "acme/web",
         number: 7,
       });
@@ -1011,6 +1012,8 @@ layer("GitLabPullRequestCli.layer", (it) => {
         ["deploy", "failure", "https://gitlab.com/bilal/web/-/pipelines/32"],
       ]);
       expect(argsOfCall(1)[1]).toBe("projects/12/pipelines/31/bridges?per_page=100");
+      expect(callAt(0).host).toBe("gitlab.internal");
+      expect(callAt(1).host).toBe("gitlab.internal");
     }),
   );
 

@@ -46,6 +46,15 @@ describe("Claude terminal account isolation", () => {
       cwd: NodeOS.homedir(),
       env: { ...options.env, CLAUDE_CONFIG_DIR: config },
     };
+    for (const settings of [
+      { fastMode: false },
+      { fastMode: true },
+      { ultracode: false },
+      { ultracode: true },
+    ]) {
+      const configured = isolateClaudeTerminalOptions(undefined, { ...input, settings });
+      expect(configured.settings).toMatchObject(settings);
+    }
     const isolated = isolateClaudeTerminalOptions(undefined, input);
     expect(isolated.cwd).toBe(NodeFS.realpathSync(NodeOS.homedir()));
     expect(isolated.env?.CLAUDE_CONFIG_DIR).toBe(config);
@@ -90,7 +99,9 @@ describe("Claude terminal account isolation", () => {
 
   it("uses only the sandbox home, keeps routing, and drops inherited identity and credentials", () => {
     const { root, options } = fixture();
-    const isolated = isolateClaudeTerminalOptions(root, options);
+    const settings = { fastMode: false, ultracode: true };
+    const isolated = isolateClaudeTerminalOptions(root, { ...options, settings });
+    expect(isolated.settings).toMatchObject(settings);
     expect(isolated.env).toMatchObject({
       HOME: NodeFS.realpathSync(NodePath.join(root, "home")),
       CLAUDE_CONFIG_DIR: NodeFS.realpathSync(NodePath.join(root, "home/.claude")),
