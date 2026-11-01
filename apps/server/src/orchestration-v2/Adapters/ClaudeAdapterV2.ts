@@ -1058,6 +1058,7 @@ export const layerQueryRunner: Layer.Layer<
                 terminalFactory !== undefined
                   ? terminalFactory({
                       prompt,
+                      trackAgent: () => portDiscovery.trackAgent(),
                       options: {
                         ...queryOptions,
                         ...(terminalSubagentContext === undefined

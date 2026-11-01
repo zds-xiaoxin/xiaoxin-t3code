@@ -152,14 +152,14 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
   const update: ServerSelfUpdate["Service"]["update"] = Effect.fn(
     "cloud.server_self_update.update",
   )(function* (input, reportProgress = () => Effect.void, onHandoffAccepted = () => Effect.void) {
-    yield* Effect.try({
-      try: () => assertStorageBudget(serverConfig.baseDir, 2),
-      catch: (cause) => new ServerSelfUpdateError({ reason: String(cause) }),
-    });
     if (capability === "desktop-managed") {
       const unsafeCrossing = input.channel === undefined ? null : crossesTrackUnsafely(input);
       if (unsafeCrossing !== null) return yield* failWith(unsafeCrossing);
       if (desktopAppUpdate.available) {
+        yield* Effect.try({
+          try: () => assertStorageBudget(serverConfig.baseDir, 2),
+          catch: (cause) => new ServerSelfUpdateError({ reason: String(cause) }),
+        });
         return yield* desktopAppUpdate.run(
           reportProgress,
           input.channel === undefined
@@ -188,6 +188,10 @@ export const make = Effect.fn("cloud.server_self_update.make")(function* () {
     }
 
     return yield* Effect.gen(function* () {
+      yield* Effect.try({
+        try: () => assertStorageBudget(serverConfig.baseDir, 2),
+        catch: (cause) => new ServerSelfUpdateError({ reason: String(cause) }),
+      });
       yield* reportProgress("downloading");
       const paths = yield* ensurePinnedRuntimeInstalled({
         baseDir: serverConfig.baseDir,

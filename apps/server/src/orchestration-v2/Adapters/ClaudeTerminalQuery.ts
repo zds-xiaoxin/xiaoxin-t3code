@@ -2721,9 +2721,26 @@ export const makeClaudeTerminalQueryFactory = Effect.gen(function* () {
     readonly prompt: AsyncIterable<SDKUserMessage>;
     readonly options: ClaudeTerminalOptions;
     readonly sandbox?: string;
+    readonly trackAgent?: () => () => void;
   }): ClaudeTerminalQueryRuntime =>
     new ClaudeTerminalQuery(
       { ...input, options: isolateClaudeTerminalOptions(input.sandbox, input.options) },
-      (spawnInput) => runPromise(pty.spawn(spawnInput)),
+      async (spawnInput) => {
+        const releaseAgent = input.trackAgent?.();
+        let released = false;
+        const release = () => {
+          if (released) return;
+          released = true;
+          releaseAgent?.();
+        };
+        try {
+          const child = await runPromise(pty.spawn(spawnInput));
+          child.onExit(release);
+          return child;
+        } catch (error) {
+          release();
+          throw error;
+        }
+      },
     );
 });

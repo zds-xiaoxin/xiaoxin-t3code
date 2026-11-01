@@ -24,6 +24,7 @@ function fixture() {
       env: {
         CLAUDE_CONFIG_DIR: NodePath.join(root, "home/.claude"),
         PATH: "/usr/bin:/bin",
+        T3CODE_THREAD_ID: "fixture-thread",
         HOME: NodeOS.homedir(),
         ANTHROPIC_API_KEY: "must-not-inherit",
         CLAUDE_CODE_OAUTH_TOKEN: "must-not-inherit",
@@ -60,6 +61,7 @@ describe("Claude terminal account isolation", () => {
     expect(isolated.env?.CLAUDE_CONFIG_DIR).toBe(config);
     expect(isolated.env?.HOME).toBe(NodeFS.realpathSync(NodeOS.homedir()));
     expect(isolated.env?.XDG_CONFIG_HOME).toBe(NodePath.join(config, ".t3-terminal/home/.config"));
+    expect(isolated.env?.T3CODE_THREAD_ID).toBe("fixture-thread");
     expect(isolated.env).not.toHaveProperty("ANTHROPIC_API_KEY");
     expect(isolated.env).not.toHaveProperty("CLAUDE_CODE_OAUTH_TOKEN");
     expect(isolated.env?.T3_CLAUDE_TUI_TEST_UPSTREAM).toBe(options.env.T3_CLAUDE_TUI_TEST_UPSTREAM);
@@ -104,6 +106,7 @@ describe("Claude terminal account isolation", () => {
     expect(isolated.settings).toMatchObject(settings);
     expect(isolated.env).toMatchObject({
       HOME: NodeFS.realpathSync(NodePath.join(root, "home")),
+      T3CODE_THREAD_ID: "fixture-thread",
       CLAUDE_CONFIG_DIR: NodeFS.realpathSync(NodePath.join(root, "home/.claude")),
       HTTPS_PROXY: options.env.HTTPS_PROXY,
       T3_CLAUDE_TUI_TEST_UPSTREAM: "http://127.0.0.1:12345",

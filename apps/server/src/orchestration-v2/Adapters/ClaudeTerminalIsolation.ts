@@ -29,6 +29,7 @@ const FORWARDED_ENV = new Set([
   "CLAUDE_CODE_MAX_OUTPUT_TOKENS",
   "CLAUDE_CODE_MAX_RETRIES",
   "T3_CLAUDE_TUI_TEST_UPSTREAM",
+  "T3CODE_THREAD_ID",
 ]);
 const SETTING_KEYS = new Set([
   "autoCompactWindow",
