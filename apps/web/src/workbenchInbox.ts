@@ -31,7 +31,12 @@ export function inboxReason(
   const active = ["preparing", "queued", "starting", "running", "waiting"].includes(
     thread.runtime?.status ?? "",
   );
-  if (active || backgroundWorkHoldsCompletion(thread.pendingBackgroundTasks)) return null;
+  if (
+    active ||
+    backgroundWorkHoldsCompletion(thread.pendingBackgroundTasks) ||
+    thread.pendingBackgroundTasks.some((task) => task.kind === "monitor")
+  )
+    return null;
   const completed = thread.latestRun?.completedAt;
   if (
     thread.latestRun?.status === "failed" &&

@@ -347,6 +347,7 @@ const cleanupFixture = (
     let onLiveCheck: Effect.Effect<void> = Effect.void;
     let outboxStatus: string | null = null;
     let fullStatusCalls = 0;
+    let branchChangedError: string | null = null;
     let snapshotReads = 0;
     let terminalListener: ((event: TerminalMetadataStreamEvent) => Effect.Effect<void>) | undefined;
     let events: Stream.Stream<OrchestrationV2DomainEvent> = Stream.empty;
@@ -363,7 +364,12 @@ const cleanupFixture = (
               (input.args.includes("remove") || input.args.includes("--porcelain"))
             )
               yield* fs.writeFileString(`${worktree}/tracked.txt`, "late edit\n");
-            return yield* git.execute(input);
+            const result = yield* git.execute(input);
+            return input.operation === "StorageCleanup.branchChanged" &&
+              result.exitCode !== 0 &&
+              branchChangedError !== null
+              ? { ...result, stderr: branchChangedError }
+              : result;
           }),
         statusDetailsLocal: (...args) => {
           fullStatusCalls++;
@@ -549,6 +555,9 @@ const cleanupFixture = (
           },
         }) ?? Effect.void,
       fullStatusCalls: () => fullStatusCalls,
+      setBranchChangedError: (message: string | null) => {
+        branchChangedError = message;
+      },
       snapshotReads: () => snapshotReads,
       activate: (domainEvents: Stream.Stream<OrchestrationV2DomainEvent>) => {
         events = domainEvents;
@@ -2073,8 +2082,16 @@ describe("storage cleanup reports and local file policies", () => {
   it.live("compares the checked-out branch without a full status", () =>
     runCleanupTest(
       Effect.gen(function* () {
-        const { service, fs, repo, worktree, command, setThreads, fullStatusCalls } =
-          yield* cleanupFixture();
+        const {
+          service,
+          fs,
+          repo,
+          worktree,
+          command,
+          setThreads,
+          fullStatusCalls,
+          setBranchChangedError,
+        } = yield* cleanupFixture();
         const changed = { outcome: "kept", reason: "Repository or branch changed" };
         yield* command(worktree, ["checkout", "--detach"]);
         expect((yield* service.runNow).entries[0]).toMatchObject(changed);
@@ -2103,7 +2120,15 @@ describe("storage cleanup reports and local file policies", () => {
         yield* fs.remove(`${index.trim()}.lock`);
         const gitFile = yield* fs.readFileString(`${worktree}/.git`);
         yield* fs.writeFileString(`${worktree}/.git`, "gitdir: /missing-git-directory\n");
-        expect((yield* service.runNow).entries[0]).toMatchObject(changed);
+        for (const error of [
+          "fatal: not a git repository: /missing-git-directory",
+          `fatal: gitfile does not point to a valid repository: ${worktree}/.git`,
+        ]) {
+          setBranchChangedError(error);
+          expect((yield* service.runNow).entries[0]).toMatchObject(changed);
+          expect(yield* fs.readFileString(`${worktree}/tracked.txt`)).toBe("original\n");
+        }
+        setBranchChangedError(null);
         yield* fs.writeFileString(`${worktree}/.git`, gitFile);
         expect((yield* service.runNow).entries[0]).toMatchObject({ outcome: "removed" });
         expect(fullStatusCalls()).toBe(0);

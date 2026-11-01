@@ -318,6 +318,8 @@ const repoProject = {
   isScratch: false,
 };
 
+const collectionKey = JSON.stringify(["workspace-collection", "env-1", "其他项目"]);
+
 describe("thread project resolution", () => {
   beforeEach(resetStores);
 
@@ -329,7 +331,7 @@ describe("thread project resolution", () => {
     settle("http://localhost:5173/", "Dev App");
 
     expect(useBrowserHistoryStore.getState().byProjectKey).toEqual({
-      "env-1:/repo": [{ url: "http://localhost:5173/", lastVisitedAt: 1, title: "Dev App" }],
+      [collectionKey]: [{ url: "http://localhost:5173/", lastVisitedAt: 1, title: "Dev App" }],
     });
     expect(useBrowserHistoryStore.getState().pendingVisitsByThreadKey).toEqual({});
   });
@@ -346,7 +348,7 @@ describe("thread project resolution", () => {
     recordVisitForThread(threadRef, "http://localhost:5173/", 1);
 
     expect(useBrowserHistoryStore.getState().byProjectKey).toEqual({
-      "env-1:/repo": [{ url: "http://localhost:5173/", lastVisitedAt: 1 }],
+      [collectionKey]: [{ url: "http://localhost:5173/", lastVisitedAt: 1 }],
     });
     expect(useBrowserHistoryStore.getState().pendingVisitsByThreadKey).toEqual({});
   });
@@ -368,7 +370,7 @@ describe("thread project resolution", () => {
     settingsHydration.finish();
     await settingsHydration.promise;
     expect(useBrowserHistoryStore.getState().byProjectKey).toEqual({
-      "env-1:/repo": [{ url: "http://localhost:5173/", lastVisitedAt: 1 }],
+      [collectionKey]: [{ url: "http://localhost:5173/", lastVisitedAt: 1 }],
     });
     expect(useBrowserHistoryStore.getState().pendingVisitsByThreadKey).toEqual({});
   });
@@ -380,7 +382,7 @@ describe("thread project resolution", () => {
     recordVisitForThread(threadRef, "http://b.test/", 2);
 
     expect(
-      useBrowserHistoryStore.getState().byProjectKey["env-1:/repo"]?.map((entry) => entry.url),
+      useBrowserHistoryStore.getState().byProjectKey[collectionKey]?.map((entry) => entry.url),
     ).toEqual(["http://b.test/", "http://a.test/"]);
   });
 });

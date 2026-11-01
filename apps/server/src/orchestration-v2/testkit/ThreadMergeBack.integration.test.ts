@@ -385,6 +385,7 @@ describe("orchestration V2 merge-back provider replay", () => {
           ] satisfies ReadonlyArray<OrchestrationV2Command>;
           return {
             commands,
+            projectId,
             sourceThreadId,
             firstForkThreadId,
             secondForkThreadId,
@@ -404,20 +405,6 @@ describe("orchestration V2 merge-back provider replay", () => {
           forkUserText: THREAD_MERGE_BACK_SIBLINGS_SECOND_FORK_PROMPT,
           forkAssistantText: "second merge sibling stored",
         });
-        const transcript = parameterizeHandoffs(rawTranscript, [
-          [
-            THREAD_MERGE_BACK_SIBLINGS_FIRST_HANDOFF_PROMPT,
-            variant.driver === "codex"
-              ? FIRST_SIBLING_MERGE_USER_TEXT
-              : providerMessage(firstSummary, FIRST_SIBLING_MERGE_USER_TEXT),
-          ],
-          [
-            THREAD_MERGE_BACK_SIBLINGS_SECOND_HANDOFF_PROMPT,
-            variant.driver === "codex"
-              ? SECOND_SIBLING_MERGE_USER_TEXT
-              : providerMessage(secondSummary, SECOND_SIBLING_MERGE_USER_TEXT),
-          ],
-        ]);
         const cwd = yield* Effect.acquireRelease(
           Effect.promise(() => makeCheckpointWorkspace(`merge-back-siblings-${variant.driver}`)),
           (directory) =>
@@ -426,6 +413,21 @@ describe("orchestration V2 merge-back provider replay", () => {
               Effect.orDie,
             ),
         );
+        const workspaceNote = `Current task workspace: ${JSON.stringify({ projectId: materialized.projectId, threadId: materialized.sourceThreadId, cwd, branch: null })}. Historical paths may belong to earlier workspaces; verify the current files and running instance before editing or testing.`;
+        const transcript = parameterizeHandoffs(rawTranscript, [
+          [
+            THREAD_MERGE_BACK_SIBLINGS_FIRST_HANDOFF_PROMPT,
+            variant.driver === "codex"
+              ? `${workspaceNote}\n\nUser message:\n${FIRST_SIBLING_MERGE_USER_TEXT}`
+              : providerMessage(firstSummary, FIRST_SIBLING_MERGE_USER_TEXT),
+          ],
+          [
+            THREAD_MERGE_BACK_SIBLINGS_SECOND_HANDOFF_PROMPT,
+            variant.driver === "codex"
+              ? `${workspaceNote}\n\nUser message:\n${SECOND_SIBLING_MERGE_USER_TEXT}`
+              : providerMessage(secondSummary, SECOND_SIBLING_MERGE_USER_TEXT),
+          ],
+        ]);
         const steps = [
           { type: "dispatch" as const, command: materialized.commands[0]!, await: true },
           { type: "advance_clock" as const, duration: "1 millis" as const },
