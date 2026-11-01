@@ -1,4 +1,6 @@
 import * as Schema from "effect/Schema";
+import * as DateTime from "effect/DateTime";
+import * as Option from "effect/Option";
 
 import {
   CommandId,
@@ -31,9 +33,16 @@ const ScheduledTaskIntervalSchedule = Schema.Struct({
   everyMs: ScheduledTaskIntervalMs,
 });
 
+export const ScheduledTaskTimeZone = TrimmedNonEmptyString.check(
+  Schema.makeFilter((zone) => Option.isSome(DateTime.zoneMakeNamed(zone))),
+).annotate({
+  description: "IANA time zone, such as Asia/Shanghai. Omit to use the environment time zone.",
+});
+
 const ScheduledTaskFixedTimeSchedule = Schema.Struct({
   type: Schema.Literal("fixed_time"),
   timeOfDay: TimeOfDay,
+  timeZone: Schema.optional(ScheduledTaskTimeZone),
   weekdays: Schema.optional(
     Schema.Array(
       Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 6 })).annotate({

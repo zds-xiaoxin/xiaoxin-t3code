@@ -265,6 +265,13 @@ export function useCommandPaletteThreadItems(input: {
       searchTerms: [messageSearch.query, match.title ?? "", match.snippet],
       icon: <MessageSquareIcon className={ITEM_ICON_CLASS} />,
       description: subtitle,
+      ...(match.archivedAt && match.messageId
+        ? {
+            titleTrailingContent: (
+              <span className="shrink-0 text-xs text-muted-foreground">已归档</span>
+            ),
+          }
+        : {}),
       ...(match.score !== undefined ? { searchScore: match.score } : {}),
       ...(match.familyKey
         ? {

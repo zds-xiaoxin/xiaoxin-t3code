@@ -52,5 +52,4 @@ describe("active provider context", () => {
       }),
     ).toBe(latest);
   });
-
 });

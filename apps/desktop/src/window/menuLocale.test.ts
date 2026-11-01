@@ -4,7 +4,15 @@ import { localizeApplicationMenu } from "./menuLocale.ts";
 describe("desktop menu localization", () => {
   it("retains native role, accelerator and action semantics", () => {
     const click = () => undefined;
-    const source = [{ label: "File", submenu: [{ role: "copy" as const }, { label: "Reload", accelerator: "CmdOrCtrl+R", click }] }];
+    const source = [
+      {
+        label: "File",
+        submenu: [
+          { role: "copy" as const },
+          { label: "Reload", accelerator: "CmdOrCtrl+R", click },
+        ],
+      },
+    ];
     const translated = localizeApplicationMenu(source, "zh-CN");
     expect(translated[0]?.label).toBe("文件");
     const submenu = translated[0]?.submenu;

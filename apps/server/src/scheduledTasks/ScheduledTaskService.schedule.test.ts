@@ -18,6 +18,50 @@ import * as ScheduledTaskService from "./ScheduledTaskService.ts";
 
 const decodeUpsertInput = Schema.decodeUnknownEffect(ScheduledTaskUpsertInput);
 
+it.effect("persists a named task zone and reschedules when only the zone changes", () =>
+  Effect.gen(function* () {
+    yield* TestClock.setTime(Date.parse("2026-11-01T10:30:00Z"));
+    const dependencies = Layer.mergeAll(
+      NodeCrypto.layer,
+      Scheduler.layer,
+      Layer.mock(ThreadLaunchService.ThreadLaunchService)({}),
+      Layer.mock(ManagedProjectFolders.ManagedProjectFolders)({
+        namedProjectsRoot: "/projects",
+        isScratchProject: () => Effect.succeed(false),
+      }),
+      Layer.mock(ThreadManagementService.ThreadManagementService)({}),
+      Layer.mock(SecretRequests.SecretRequests)({}),
+    );
+    yield* Effect.gen(function* () {
+      const service = yield* ScheduledTaskService.ScheduledTaskService;
+      const input = yield* decodeUpsertInput({
+        id: "scheduled-task:timezone",
+        title: "Daily review",
+        prompt: "Review",
+        enabled: true,
+        schedule: { type: "fixed_time", timeOfDay: "18:00", timeZone: "UTC" },
+        projectId: "project-timezone",
+        workspaceStrategy: { type: "root" },
+        modelSelection: { instanceId: "claude", model: "claude-sonnet-5-5" },
+        runtimeMode: "auto",
+        interactionMode: "default",
+      });
+      expect((yield* service.upsert(input)).task.nextRunAt).toBe("2026-11-01T18:00:00.000Z");
+      const schedule = {
+        type: "fixed_time" as const,
+        timeOfDay: "18:00",
+        timeZone: "Asia/Shanghai",
+      };
+      const updated = yield* service.upsert({ ...input, schedule });
+      expect(updated.task.nextRunAt).toBe("2026-11-02T10:00:00.000Z");
+      expect((yield* service.list()).tasks[0]?.schedule).toEqual(schedule);
+      expect((yield* service.upsert({ ...input, schedule, title: "Renamed" })).task.nextRunAt).toBe(
+        updated.task.nextRunAt,
+      );
+    }).pipe(Effect.provide(ScheduledTaskService.layer.pipe(Layer.provide(dependencies))));
+  }).pipe(Effect.provide(SqlitePersistence.layerMemory)),
+);
+
 it.effect("rejects a stale form save after deletion while preserving explicit-id creates", () =>
   Effect.gen(function* () {
     const layerDependencies = Layer.mergeAll(

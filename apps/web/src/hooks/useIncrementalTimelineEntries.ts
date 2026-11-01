@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef } from "react";
+import { useState } from "react";
+import { createProjectionCache } from "./projectionCache";
 import {
   deriveTimelineEntriesFromVisibleTurnItemsWithState,
   type TimelineEntriesInput,
@@ -21,23 +22,11 @@ export function useIncrementalTimelineEntries(
   threadKey: string | null,
   input: TimelineEntriesInput,
 ): TimelineEntriesProjection["entries"] {
-  // This is a derived cache, not UI state. Inputs may be rebuilt by a caller
-  // when its React compiler optimization is unavailable; deriving must never
-  // schedule another render of that same caller.
-  const committed = useRef<{
-    threadKey: string | null;
-    projection: TimelineEntriesProjection;
-  } | null>(null);
-  const state = committed.current;
-  const projection =
-    state?.threadKey === threadKey && sameInput(state.projection.input, input)
-      ? state.projection
-      : deriveTimelineEntriesFromVisibleTurnItemsWithState(
-    input,
-          state?.threadKey === threadKey ? state.projection : null,
+  const [project] = useState(() =>
+    createProjectionCache<TimelineEntriesInput, TimelineEntriesProjection>(
+      deriveTimelineEntriesFromVisibleTurnItemsWithState,
+      sameInput,
+    ),
   );
-  useLayoutEffect(() => {
-    committed.current = { threadKey, projection };
-  }, [threadKey, projection]);
-  return projection.entries;
+  return project(threadKey, input).entries;
 }

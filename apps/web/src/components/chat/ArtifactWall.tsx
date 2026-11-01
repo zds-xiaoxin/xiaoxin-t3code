@@ -65,15 +65,10 @@ export function ArtifactWall({
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
   const key = `${environmentId}:${threadId}:${scope}`;
   const artifacts = state.key === key ? state.artifacts : [];
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep an abortable polling subscription to the selected remote artifact collection.
   useEffect(() => {
     const controller = new AbortController();
     let active = true;
-    setState((s) => ({
-      key,
-      artifacts: s.key === key ? s.artifacts : [],
-      error: null,
-      loading: true,
-    }));
     const load = async () => {
       try {
         const artifacts = await loadWallArtifacts(
@@ -102,20 +97,26 @@ export function ArtifactWall({
       controller.abort();
       window.clearInterval(timer);
     };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Connection replacement and explicit retry both restart the polling subscription.
   }, [environmentId, threadId, scope, key, preparedConnection, retry]);
-  useEffect(() => {
+  const viewKey = `${key}:${filter}`;
+  const [previousViewKey, setPreviousViewKey] = useState(viewKey);
+  if (previousViewKey !== viewKey) {
+    setPreviousViewKey(viewKey);
     setVisible(40);
     setSelected(null);
     setComparison(null);
     setActionError(null);
-  }, [key, filter]);
+  }
   const filtered = (() => artifacts.filter((a) => filter === "all" || a.kind === filter))();
   const counts = artifactCounts(artifacts);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publish the current RPC-backed collection count to the host tab indicator.
   useEffect(() => {
     onCount?.(counts.all);
   }, [counts.all, onCount]);
   const groups = groupArtifacts(filtered.slice(0, visible));
   const images = (() => artifacts.filter((a) => a.kind === "image"))();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the browser intersection observer attached to the current pagination sentinel.
   useEffect(() => {
     const element = loadMore.current;
     if (!element || visible >= filtered.length) return;
@@ -166,15 +167,17 @@ export function ArtifactWall({
   const attach = async (a: WallArtifact) => {
     setBusy(true);
     setActionError(null);
-    try {
-      const file = await fileFromArtifact(environmentId, a);
-      onAttach([file]);
-      setSelected(null);
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "无法附加此文件");
-    } finally {
+    await (async () => {
+      try {
+        const file = await fileFromArtifact(environmentId, a);
+        onAttach([file]);
+        setSelected(null);
+      } catch (error) {
+        setActionError(error instanceof Error ? error.message : "无法附加此文件");
+      }
+    })().finally(() => {
       setBusy(false);
-    }
+    });
   };
   const openPage = (a: WallArtifact) =>
     window.open(artifactFileUrl(environmentId, a.id) ?? "", "_blank", "noopener,noreferrer");
@@ -298,7 +301,14 @@ export function ArtifactWall({
             <p role="alert" className="text-2xs text-muted-foreground">
               {state.error}
             </p>
-            <Button size="xs" variant="ghost" onClick={() => setRetry((n) => n + 1)}>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => {
+                setState((current) => ({ ...current, loading: true, error: null }));
+                setRetry((n) => n + 1);
+              }}
+            >
               重试
             </Button>
           </div>
@@ -492,7 +502,11 @@ export function ArtifactWall({
                         src={artifactFileUrl(environmentId, comparison.id) ?? undefined}
                         alt={comparison.name}
                         className="absolute inset-0 size-full object-contain"
-                        style={{ clipPath: compareMode === "slider" ? `inset(0 ${100 - split}% 0 0)` : undefined, visibility: compareMode === "b" ? "hidden" : "visible" }}
+                        style={{
+                          clipPath:
+                            compareMode === "slider" ? `inset(0 ${100 - split}% 0 0)` : undefined,
+                          visibility: compareMode === "b" ? "hidden" : "visible",
+                        }}
                       />
                     ) : null}
                     <img
@@ -502,13 +516,21 @@ export function ArtifactWall({
                       }
                       alt={selected.name}
                       className="absolute inset-0 size-full object-contain"
-                      style={comparison ? { clipPath: compareMode === "slider" ? `inset(0 0 0 ${split}%)` : undefined, visibility: compareMode === "a" ? "hidden" : "visible" } : undefined}
+                      style={
+                        comparison
+                          ? {
+                              clipPath:
+                                compareMode === "slider" ? `inset(0 0 0 ${split}%)` : undefined,
+                              visibility: compareMode === "a" ? "hidden" : "visible",
+                            }
+                          : undefined
+                      }
                     />
                     {comparison && compareMode === "slider" ? (
                       <>
                         <div
                           aria-hidden="true"
-                          className="pointer-events-none absolute inset-y-0 w-px bg-background/95 shadow-[0_0_0_0.5px_var(--border)]"
+                          className="pointer-events-none absolute inset-y-0 w-px bg-background/95 ring-1 ring-inset ring-border"
                           style={{ left: `${split}%` }}
                         />
                         <input
@@ -524,7 +546,7 @@ export function ArtifactWall({
                         />
                         <span
                           aria-hidden="true"
-                          className="pointer-events-none absolute top-1/2 flex size-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-md group-focus-within/artifact-compare:ring-2 group-focus-within/artifact-compare:ring-ring group-focus-within/artifact-compare:ring-offset-2 group-focus-within/artifact-compare:ring-offset-background"
+                          className="pointer-events-none absolute top-1/2 flex size-8 items-center justify-center rounded-full border border-border/60 bg-background/90 text-foreground shadow-sm backdrop-blur-md group-focus-within/artifact-compare:ring-2 group-focus-within/artifact-compare:ring-inset group-focus-within/artifact-compare:ring-ring"
                           style={{ left: `${split}%`, transform: "translate(-50%, -50%)" }}
                         >
                           <ChevronLeftIcon className="size-3.5" strokeWidth={1.5} />
@@ -535,9 +557,27 @@ export function ArtifactWall({
                   </div>
                 )}
                 {comparison ? (
-                  <div role="group" aria-label="图片对比方式" className="flex shrink-0 items-center justify-center gap-1">
-                    {([["slider", "滑动对比"], ["a", "A 全图"], ["b", "B 全图"]] as const).map(([mode, label]) => (
-                      <Button key={mode} size="xs" variant={compareMode === mode ? "secondary" : "ghost"} aria-pressed={compareMode === mode} onClick={() => setCompareMode(mode)}>{label}</Button>
+                  <div
+                    role="group"
+                    aria-label="图片对比方式"
+                    className="flex shrink-0 items-center justify-center gap-1"
+                  >
+                    {(
+                      [
+                        ["slider", "滑动对比"],
+                        ["a", "A 全图"],
+                        ["b", "B 全图"],
+                      ] as const
+                    ).map(([mode, label]) => (
+                      <Button
+                        key={mode}
+                        size="xs"
+                        variant={compareMode === mode ? "secondary" : "ghost"}
+                        aria-pressed={compareMode === mode}
+                        onClick={() => setCompareMode(mode)}
+                      >
+                        {label}
+                      </Button>
                     ))}
                   </div>
                 ) : null}
@@ -569,7 +609,10 @@ export function ArtifactWall({
                         className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
                         aria-label={`选择对比 ${a.name}`}
                         disabled={artifactVersionKey(a) === artifactVersionKey(selected)}
-                        onClick={() => { setComparison(a); setCompareMode("slider"); }}
+                        onClick={() => {
+                          setComparison(a);
+                          setCompareMode("slider");
+                        }}
                       >
                         {thumb(a, "size-full object-cover")}
                       </button>

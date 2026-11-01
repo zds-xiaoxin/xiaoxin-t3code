@@ -45,6 +45,10 @@ export function useSecretSources(environmentId: EnvironmentId): ReadonlyArray<Se
     .map(([id, config]) => ({ id, kind: config.kind, label: config.label }));
 }
 
+function SourceIcon(props: { readonly icon: ComponentType<{ readonly className?: string }> }) {
+  return <props.icon className="size-3.5 shrink-0" />;
+}
+
 function SourceLabel(props: {
   readonly icon: ComponentType<{ readonly className?: string }>;
   readonly label: string;
@@ -108,15 +112,12 @@ export function SecretSourceInput({
       >
         <SelectTrigger
           size="sm"
-          className="w-full min-w-0"
+          className="w-auto min-w-0 shrink-0"
           aria-label={uiText("{label} source", { label })}
+          title={provider === null ? uiText("Value") : providerLabel(provider)}
         >
           <SelectValue>
-            {provider === null ? (
-              <SourceLabel icon={TypeIcon} label={uiText("Value")} />
-            ) : (
-              <SourceLabel icon={providerIcon(provider)} label={providerLabel(provider)} />
-            )}
+            <SourceIcon icon={provider === null ? TypeIcon : providerIcon(provider)} />
           </SelectValue>
         </SelectTrigger>
         <SelectPopup align="start" alignItemWithTrigger={false}>
@@ -183,7 +184,7 @@ export function SecretSourceInput({
   if (source === null) return valueField;
   return (
     <div className="flex min-w-0 flex-1 items-start gap-1.5">
-      <div className="w-28 shrink-0">{source}</div>
+      {source}
       {valueField}
     </div>
   );

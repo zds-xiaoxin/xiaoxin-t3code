@@ -227,6 +227,7 @@ function OriginalThreadHistory({
   const scrollAnchor = useRef<{ height: number; top: number } | null>(null);
   const busy = useRef(false);
   const didScrollToEnd = useRef(false);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the transcript DOM scroll anchor stable when earlier history is prepended.
   useLayoutEffect(() => {
     const el = scroller.current;
     if (!el || !expanded) return;
@@ -244,11 +245,9 @@ function OriginalThreadHistory({
     busy.current = true;
     const el = scroller.current;
     if (el) scrollAnchor.current = { height: el.scrollHeight, top: el.scrollTop };
-    try {
-      await loadEarlier({ environmentId, input: { threadId: parent.id } });
-    } finally {
+    await loadEarlier({ environmentId, input: { threadId: parent.id } }).finally(() => {
       busy.current = false;
-    }
+    });
   };
   return (
     <section aria-label="原会话" className="min-w-0 px-3 pt-3 pb-2" data-continuation-history>

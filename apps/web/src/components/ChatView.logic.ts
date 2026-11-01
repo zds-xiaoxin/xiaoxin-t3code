@@ -532,6 +532,7 @@ export function resolveComposerProviderSelection(input: {
       : requestedInstanceId;
   return {
     selectedProviderEntry,
+    requestedInstanceId,
     requestedDriverKind,
     lockedContinuationGroupKey,
     unavailableProviderInstanceId,
@@ -749,6 +750,7 @@ export function cloneComposerImageForRetry(
 export function deriveComposerSendState(options: {
   prompt: string;
   imageCount: number;
+  existingAttachmentCount?: number;
   terminalContexts: ReadonlyArray<TerminalContextDraft>;
   elementContextCount?: number;
 }): {
@@ -769,6 +771,7 @@ export function deriveComposerSendState(options: {
     hasSendableContent:
       trimmedPrompt.length > 0 ||
       options.imageCount > 0 ||
+      (options.existingAttachmentCount ?? 0) > 0 ||
       sendableTerminalContexts.length > 0 ||
       elementContextCount > 0,
   };
@@ -780,15 +783,16 @@ export function buildExpiredTerminalContextToastCopy(
 ): { title: string; description: string } {
   const count = Math.max(1, Math.floor(expiredTerminalContextCount));
   const noun = count === 1 ? "Expired terminal context" : "Expired terminal contexts";
+  const pronoun = count === 1 ? "it" : "them";
   if (variant === "empty") {
     return {
       title: uiText("{0} won't be sent", { "0": noun }),
-      description: uiText("Remove it or re-add it to include terminal output."),
+      description: uiText("Remove {0} or re-add {0} to include terminal output.", { 0: pronoun }),
     };
   }
   return {
     title: uiText("{0} omitted from message", { "0": noun }),
-    description: uiText("Re-add it if you want that terminal output included."),
+    description: uiText("Re-add {0} if you want that terminal output included.", { 0: pronoun }),
   };
 }
 

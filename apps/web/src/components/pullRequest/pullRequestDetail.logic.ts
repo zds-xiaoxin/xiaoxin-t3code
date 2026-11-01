@@ -462,15 +462,11 @@ export interface PullRequestTimelineThread
     PullRequestReplyAvailability {
   readonly replies: ReadonlyArray<PullRequestTimelineEvent>;
 }
+
 export type PullRequestTimelineRow =
-  | {
-      readonly kind: "event";
-      readonly event: PullRequestTimelineEvent;
-    }
-  | {
-      readonly kind: "comments";
-      readonly events: ReadonlyArray<PullRequestTimelineEvent>;
-    };
+  | { readonly kind: "event"; readonly event: PullRequestTimelineEvent }
+  | { readonly kind: "comments"; readonly events: ReadonlyArray<PullRequestTimelineEvent> };
+
 export function groupPullRequestTimelineConversations(
   events: ReadonlyArray<PullRequestTimelineEvent>,
 ): ReadonlyArray<PullRequestTimelineRow> {

@@ -11,6 +11,22 @@ import * as TestClock from "effect/testing/TestClock";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import * as ChildProcessSpawner from "effect/process/ChildProcessSpawner";
 
+import { vi } from "vite-plus/test";
+
+const disk = vi.hoisted(() => ({ freeGiB: 64 }));
+vi.mock("node:fs", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("node:fs")>()),
+  statfsSync: () => ({
+    type: 0,
+    bsize: 1024 ** 3,
+    blocks: 128,
+    bfree: disk.freeGiB,
+    bavail: disk.freeGiB,
+    files: 1000,
+    ffree: 1000,
+  }),
+}));
+
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
 import * as DesktopAppUpdate from "../desktopUpdate/DesktopAppUpdate.ts";
@@ -21,6 +37,7 @@ import * as ServerSelfUpdate from "./selfUpdate.ts";
 
 interface HarnessOptions {
   readonly mode?: "web" | "desktop";
+  readonly freeGiB?: number;
   readonly managed?: boolean;
   readonly preflight?: "ready" | "blocked";
   readonly beforeDownload?: Effect.Effect<void>;
@@ -51,6 +68,13 @@ const releaseHttpClient = (order: string[], beforeDownload?: Effect.Effect<void>
 const makeHarness = Effect.fn("test.make_self_update_harness")(function* (
   options: HarnessOptions = {},
 ) {
+  const previousFreeGiB = disk.freeGiB;
+  disk.freeGiB = options.freeGiB ?? 64;
+  yield* Effect.addFinalizer(() =>
+    Effect.sync(() => {
+      disk.freeGiB = previousFreeGiB;
+    }),
+  );
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const baseDir = yield* fs.makeTempDirectoryScoped({ prefix: "t3-self-update-test-" });
@@ -124,18 +148,24 @@ const makeHarness = Effect.fn("test.make_self_update_harness")(function* (
     Effect.provideService(HostProcess.Architecture, "x64"),
     Effect.provide(ServerConfig.layer({ ...config, mode: options.mode ?? "web" })),
   );
-  return { selfUpdate, order };
+  return {
+    selfUpdate,
+    order,
+    setFreeGiB: (value: number) => {
+      disk.freeGiB = value;
+    },
+  };
 });
 
 it.layer(NodeServices.layer)("server self update", (it) => {
   // regression: #5181 make remote updates rollback-safe
   it.effect("rejects invalid versions and desktop-managed servers before staging", () =>
     Effect.gen(function* () {
-      const web = yield* makeHarness();
+      const web = yield* makeHarness({ freeGiB: 8 });
       expect(
         (yield* web.selfUpdate.update({ targetVersion: "latest" }).pipe(Effect.flip)).reason,
       ).toBe("'latest' is not an exact t3 version.");
-      const desktop = yield* makeHarness({ mode: "desktop" });
+      const desktop = yield* makeHarness({ mode: "desktop", freeGiB: 8 });
       expect(
         (yield* desktop.selfUpdate.update({ targetVersion: "1.1.0" }).pipe(Effect.flip)).reason,
       ).toContain("desktop app");
@@ -146,8 +176,9 @@ it.layer(NodeServices.layer)("server self update", (it) => {
   it.effect("delegates desktop-managed updates to the desktop app when available", () =>
     Effect.gen(function* () {
       const stages: string[] = [];
-      const { selfUpdate, order } = yield* makeHarness({
+      const { selfUpdate, order, setFreeGiB } = yield* makeHarness({
         mode: "desktop",
+        freeGiB: 8,
         desktopAppUpdate: {
           available: true,
           run: (reportProgress) =>
@@ -158,6 +189,12 @@ it.layer(NodeServices.layer)("server self update", (it) => {
           commit: () => Effect.never,
         },
       });
+      expect(
+        (yield* selfUpdate.update({ targetVersion: "1.1.0" }).pipe(Effect.flip)).reason,
+      ).toContain("空间预算不足");
+      expect(stages).toEqual([]);
+      expect(order).toEqual([]);
+      setFreeGiB(64);
       const result = yield* selfUpdate.update({ targetVersion: "1.1.0" }, (stage) =>
         Effect.sync(() => void stages.push(stage)),
       );
@@ -171,10 +208,16 @@ it.layer(NodeServices.layer)("server self update", (it) => {
     Effect.gen(function* () {
       const requested = yield* Deferred.make<void>();
       const accepted = yield* Deferred.make<string>();
-      const { selfUpdate } = yield* makeHarness({
+      const { selfUpdate, order, setFreeGiB } = yield* makeHarness({
+        freeGiB: 8,
         requestUpdate: () =>
           Deferred.succeed(requested, undefined).pipe(Effect.andThen(Deferred.await(accepted))),
       });
+      expect(
+        (yield* selfUpdate.update({ targetVersion: "1.1.0" }).pipe(Effect.flip)).reason,
+      ).toContain("空间预算不足");
+      expect(order).toEqual([]);
+      setFreeGiB(64);
       const first = yield* Effect.forkChild(selfUpdate.update({ targetVersion: "1.1.0" }), {
         startImmediately: true,
       });

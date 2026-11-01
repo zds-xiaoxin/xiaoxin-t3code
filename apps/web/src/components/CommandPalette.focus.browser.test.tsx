@@ -5,6 +5,7 @@ import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { CommandPalette } from "./CommandPalette";
 import { useComposerHandleContext } from "../composerHandleContext";
 import { openCommandPalette } from "../commandPaletteBus";
+import { dispatchCommandPalette } from "../commandPaletteStore";
 import { primaryServerKeybindingsAtom } from "../state/server";
 
 const searchMock = vi.hoisted(() => ({ matches: [] as unknown[], query: "" }));
@@ -37,7 +38,15 @@ vi.mock("../hooks/useScratchProject", () => ({
   useScratchProject: () => ({ scratchEnvironmentId: () => null }),
 }));
 vi.mock("../hooks/useNewProject", () => ({ useNewProject: () => vi.fn() }));
-vi.mock("../hooks/useHandleNewThread", () => ({ useHandleNewThread: () => ({}) }));
+vi.mock("../hooks/useHandleNewThread", () => ({
+  useHandleNewThread: () => ({
+    activeDraftThread: null,
+    activeThread: null,
+    defaultProjectRef: null,
+    handleNewThread: vi.fn(),
+  }),
+  useNewThreadHandler: () => vi.fn(),
+}));
 vi.mock("../hooks/useOpenPanelPullRequestUrl", () => ({ useOpenPanelPullRequestUrl: () => null }));
 vi.mock("../connection/useDesktopLocalBootstraps", () => ({ useDesktopLocalBootstraps: () => [] }));
 vi.mock("../state/use-atom-command", () => ({ useAtomCommand: () => vi.fn() }));
@@ -128,7 +137,7 @@ describe("command palette focus restoration", () => {
   });
 
   it("updates keyword results after closing and reopening the palette", async () => {
-    await using screen = await renderPalette(<input aria-label="Settings field" />);
+    await using _screen = await renderPalette(<input aria-label="Settings field" />);
     for (const query of ["first-query", "second-query"]) {
       await act(() => openCommandPalette());
       await flushFocus();
@@ -155,17 +164,7 @@ describe("command palette focus restoration", () => {
     await using screen = await renderPalette(<input aria-label="Settings field" />);
     const field = screen.container.querySelector("input")!;
     await act(() => field.focus());
-    await act(() =>
-      field.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          key: "p",
-          ctrlKey: !navigator.platform.startsWith("Mac"),
-          metaKey: navigator.platform.startsWith("Mac"),
-          bubbles: true,
-          cancelable: true,
-        }),
-      ),
-    );
+    await act(() => dispatchCommandPalette({ _tag: "ToggleMode", mode: "files" }));
     await flushFocus();
     expect(document.querySelector('[data-palette-mode="files"]')).not.toBeNull();
     await act(() =>
@@ -225,7 +224,7 @@ it("shows archived Spotlight hits without requiring a loaded thread shell after 
       searchMock.query = "";
     },
   };
-  await using screen = await renderPalette(<input aria-label="Settings field" />);
+  await using _screen = await renderPalette(<input aria-label="Settings field" />);
   await act(() => openCommandPalette());
   await flushFocus();
   const input = document.querySelector<HTMLInputElement>(

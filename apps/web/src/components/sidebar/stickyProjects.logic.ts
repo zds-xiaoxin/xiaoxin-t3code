@@ -75,12 +75,18 @@ export function isProjectSticky(
     memberProjectRefs?: ReadonlyArray<ScopedProjectRef>;
   },
 ): boolean {
-  if (identities.some((id) => id.environmentId === project.environmentId && id.projectId === project.id)) {
+  if (
+    identities.some(
+      (id) => id.environmentId === project.environmentId && id.projectId === project.id,
+    )
+  ) {
     return true;
   }
   if (project.memberProjectRefs && project.memberProjectRefs.length > 0) {
     return project.memberProjectRefs.some((ref) =>
-      identities.some((id) => id.environmentId === ref.environmentId && id.projectId === ref.projectId),
+      identities.some(
+        (id) => id.environmentId === ref.environmentId && id.projectId === ref.projectId,
+      ),
     );
   }
   return false;
@@ -97,14 +103,7 @@ export interface ResolvedStickyProjectItem {
   readonly isDefaultExpanded: boolean;
 }
 
-/**
- * Resolves sticky identities against current active sidebar projects.
- * - Stable environmentId+projectId identity is preserved.
- * - Logical project membership is respected: renames in project are automatically reflected.
- * - Disconnected or deleted projects are flagged as isAvailable: false.
- * - For available projects, loads up to 3 recent unarchived threads.
- * - Active project defaults to expanded, others collapsed.
- */
+/** Resolve available pinned projects and their recent threads by stable project identity. */
 export function resolveStickyProjects(input: {
   identities: ReadonlyArray<StickyProjectIdentity>;
   sidebarProjects: ReadonlyArray<SidebarProjectSnapshot>;
@@ -114,55 +113,60 @@ export function resolveStickyProjects(input: {
   const { identities, sidebarProjects, threadsByProjectKey, activeProjectKey } = input;
 
   const seenProjects = new Set<string>();
-  return identities.map((identity) => {
-    const key = stickyProjectKey(identity);
-    // Find matching logical project snapshot by primary id or any member project ref
-    const snapshot = sidebarProjects.find((p) => {
-      if (p.environmentId === identity.environmentId && p.id === identity.projectId) {
-        return true;
-      }
-      return p.memberProjectRefs?.some(
-        (ref) => ref.environmentId === identity.environmentId && ref.projectId === identity.projectId,
-      );
-    });
+  return identities
+    .map((identity) => {
+      const key = stickyProjectKey(identity);
+      // Find matching logical project snapshot by primary id or any member project ref
+      const snapshot = sidebarProjects.find((p) => {
+        if (p.environmentId === identity.environmentId && p.id === identity.projectId) {
+          return true;
+        }
+        return p.memberProjectRefs?.some(
+          (ref) =>
+            ref.environmentId === identity.environmentId && ref.projectId === identity.projectId,
+        );
+      });
 
-    if (!snapshot) {
+      if (!snapshot) {
+        return {
+          identity,
+          key,
+          isAvailable: false,
+          title: "不可用项目",
+          recentThreads: [],
+          totalThreadCount: 0,
+          isDefaultExpanded: false,
+        };
+      }
+
+      if (seenProjects.has(snapshot.projectKey)) return null;
+      seenProjects.add(snapshot.projectKey);
+      const allThreads = threadsByProjectKey.get(snapshot.projectKey) ?? [];
+      const unarchivedThreads = allThreads.filter((thread) => !thread.archivedAt);
+      // Sort recent threads by last activity descending (updatedAt > createdAt)
+      const sortedThreads = [...unarchivedThreads].sort((a, b) => {
+        const timeA = new Date(a.updatedAt ?? a.createdAt).getTime();
+        const timeB = new Date(b.updatedAt ?? b.createdAt).getTime();
+        return timeB - timeA;
+      });
+
+      const recentThreads = sortedThreads.slice(0, 3);
+      const isDefaultExpanded = Boolean(
+        activeProjectKey && snapshot.projectKey === activeProjectKey,
+      );
+
       return {
         identity,
         key,
-        isAvailable: false,
-        title: "不可用项目",
-        recentThreads: [],
-        totalThreadCount: 0,
-        isDefaultExpanded: false,
+        isAvailable: true,
+        title: snapshot.displayName || snapshot.title,
+        snapshot,
+        recentThreads,
+        totalThreadCount: unarchivedThreads.length,
+        isDefaultExpanded,
       };
-    }
-
-    if (seenProjects.has(snapshot.projectKey)) return null;
-    seenProjects.add(snapshot.projectKey);
-    const allThreads = threadsByProjectKey.get(snapshot.projectKey) ?? [];
-    const unarchivedThreads = allThreads.filter((thread) => !thread.archivedAt);
-    // Sort recent threads by last activity descending (updatedAt > createdAt)
-    const sortedThreads = [...unarchivedThreads].sort((a, b) => {
-      const timeA = new Date(a.updatedAt ?? a.createdAt).getTime();
-      const timeB = new Date(b.updatedAt ?? b.createdAt).getTime();
-      return timeB - timeA;
-    });
-
-    const recentThreads = sortedThreads.slice(0, 3);
-    const isDefaultExpanded = Boolean(activeProjectKey && snapshot.projectKey === activeProjectKey);
-
-    return {
-      identity,
-      key,
-      isAvailable: true,
-      title: snapshot.displayName || snapshot.title,
-      snapshot,
-      recentThreads,
-      totalThreadCount: unarchivedThreads.length,
-      isDefaultExpanded,
-    };
-  }).filter((item): item is NonNullable<typeof item> => item !== null);
+    })
+    .filter((item): item is NonNullable<typeof item> => item !== null);
 }
 
 /**
@@ -193,7 +197,8 @@ export function moveStickyProjectGroup(
 ): ReadonlyArray<StickyProjectIdentity> {
   if (list.length !== groupKeys.length) return list;
   const order = [...new Set(groupKeys)];
-  const from = order.indexOf(key), to = from + (direction === "up" ? -1 : 1);
+  const from = order.indexOf(key),
+    to = from + (direction === "up" ? -1 : 1);
   if (from < 0 || to < 0 || to >= order.length) return list;
   [order[from], order[to]] = [order[to]!, order[from]!];
   return order.flatMap((group) => list.filter((_, index) => groupKeys[index] === group));

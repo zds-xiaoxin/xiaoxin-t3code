@@ -37,7 +37,7 @@ concurrency:
 
 jobs:
   showcase:
-    if: github.repository == 'labixiaoxins/xiaoxin-t3code'
+    if: github.repository == 'zds-xiaoxin/xiaoxin-t3code'
     name: Visible feature images
     runs-on: ubuntu-latest
     timeout-minutes: 5

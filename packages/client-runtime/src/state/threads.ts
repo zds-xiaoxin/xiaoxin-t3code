@@ -935,9 +935,8 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
   // A 404 can precede creation. Wait for authoritative existence instead of
   // polling a missing id or permanently poisoning its retained subscription.
   const awaitCreatedThread = Effect.fn("EnvironmentThreadState.awaitCreatedThread")(function* () {
-    yield* subscribeDynamic(
-      ORCHESTRATION_V2_WS_METHODS.subscribeShell,
-      () => Effect.succeed({}),
+    yield* subscribeDynamic(ORCHESTRATION_V2_WS_METHODS.subscribeShell, () =>
+      Effect.succeed({}),
     ).pipe(
       Stream.filter((item) =>
         item.kind === "thread.updated"

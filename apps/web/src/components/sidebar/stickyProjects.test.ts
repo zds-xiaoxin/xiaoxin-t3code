@@ -30,7 +30,9 @@ describe("stickyProjects pure logic", () => {
   };
 
   it("handles identity comparison and key serialization", () => {
-    expect(areStickyIdentitiesEqual(p1, { environmentId: "env-1", projectId: "proj-1" })).toBe(true);
+    expect(areStickyIdentitiesEqual(p1, { environmentId: "env-1", projectId: "proj-1" })).toBe(
+      true,
+    );
     expect(areStickyIdentitiesEqual(p1, p2)).toBe(false);
     expect(areStickyIdentitiesEqual(p1, p3)).toBe(false);
     expect(stickyProjectKey(p1)).toBe("env-1:proj-1");
@@ -125,8 +127,13 @@ describe("stickyProjects pure logic", () => {
       title: "My Project Renamed",
       displayName: "My Project Renamed",
       workspaceRoot: "/workspace/1",
-      defaultModelSelection: null, scripts: [], createdAt: "2026-01-01T00:00:00Z", updatedAt: "2026-01-01T00:00:00Z",
+      defaultModelSelection: null,
+      scripts: [],
+      createdAt: "2026-01-01T00:00:00Z",
+      updatedAt: "2026-01-01T00:00:00Z",
       groupedProjectCount: 1,
+      pinned: false,
+      archived: false,
       environmentPresence: "local-only",
       allRemoteMembersAreDesktopLocal: true,
       allRemoteMembersAreWsl: false,
@@ -185,9 +192,7 @@ describe("stickyProjects pure logic", () => {
       } as SidebarThreadSummary,
     ];
 
-    const threadsByProjectKey = new Map<string, SidebarThreadSummary[]>([
-      ["key-1", dummyThreads],
-    ]);
+    const threadsByProjectKey = new Map<string, SidebarThreadSummary[]>([["key-1", dummyThreads]]);
 
     const resolved = resolveStickyProjects({
       identities: [p1, p3], // p3 is not in sidebarProjects
@@ -220,35 +225,26 @@ describe("stickyProjects pure logic", () => {
     const groups = [
       {
         project: { title: "Project Alpha" },
-        threads: [
-          { title: "Fix login authentication error" },
-          { title: "Add sidebar icon" },
-        ],
+        threads: [{ title: "Fix login authentication error" }, { title: "Add sidebar icon" }],
       },
       {
         project: { title: "Project Beta" },
-        threads: [
-          { title: "Database migration script" },
-        ],
+        threads: [{ title: "Database migration script" }],
       },
     ];
 
-    // Empty query returns all
     expect(filterArchivedGroupsByTitle(groups, "")).toEqual(groups);
     expect(filterArchivedGroupsByTitle(groups, "   ")).toEqual(groups);
 
-    // Search "login"
     const searchLogin = filterArchivedGroupsByTitle(groups, "login");
     expect(searchLogin).toHaveLength(1);
     expect(searchLogin[0]?.threads).toHaveLength(1);
     expect(searchLogin[0]?.threads[0]?.title).toBe("Fix login authentication error");
 
-    // Search "sidebar"
     const searchSidebar = filterArchivedGroupsByTitle(groups, "SIDEBAR");
     expect(searchSidebar).toHaveLength(1);
     expect(searchSidebar[0]?.threads[0]?.title).toBe("Add sidebar icon");
 
-    // Search nonexistent
     const searchNone = filterArchivedGroupsByTitle(groups, "nonexistent");
     expect(searchNone).toHaveLength(0);
   });
@@ -257,9 +253,18 @@ describe("stickyProjects pure logic", () => {
     const a2 = { environmentId: "env-b", projectId: "a2" };
     const b = { environmentId: "env-a", projectId: "b" };
     const c = { environmentId: "env-a", projectId: "c" };
-    expect(moveStickyProjectGroup([a, a2, b, c], ["A", "A", "B", "C"], "B", "up")).toEqual([b, a, a2, c]);
-    expect(moveStickyProjectGroup([a, a2, b, c], ["A", "A", "B", "C"], "A", "down")).toEqual([b, a, a2, c]);
+    expect(moveStickyProjectGroup([a, a2, b, c], ["A", "A", "B", "C"], "B", "up")).toEqual([
+      b,
+      a,
+      a2,
+      c,
+    ]);
+    expect(moveStickyProjectGroup([a, a2, b, c], ["A", "A", "B", "C"], "A", "down")).toEqual([
+      b,
+      a,
+      a2,
+      c,
+    ]);
     expect(moveStickyProjectGroup([a, b], ["A", "B"], "A", "up")).toEqual([a, b]);
   });
-
 });

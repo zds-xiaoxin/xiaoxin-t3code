@@ -32,14 +32,14 @@ The source also includes query-credential redaction in clone errors, logging pro
 
 ## Completed source validation
 
-| Check | Result |
-| --- | --- |
-| Related automated tests | 200 files passed and one platform-only file skipped; 3,953 tests passed and seven skipped |
-| React Compiler | 96 checks passed; 2,257 other cases were outside this pass |
-| Package type checks | 39 packages passed |
-| Formatting, lint, both knip stages, GraphQL and dependency patch checks | Passed |
-| Server and web builds | Passed |
-| Isolated UI and free Replay | Stop returned the UI to idle and the run ledger reached `interrupted`; Chinese navigation/search and a narrower viewport were checked |
+| Check                                                                   | Result                                                                                                                                |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Related automated tests                                                 | 200 files passed and one platform-only file skipped; 3,953 tests passed and seven skipped                                             |
+| React Compiler                                                          | 96 checks passed; 2,257 other cases were outside this pass                                                                            |
+| Package type checks                                                     | 39 packages passed                                                                                                                    |
+| Formatting, lint, both knip stages, GraphQL and dependency patch checks | Passed                                                                                                                                |
+| Server and web builds                                                   | Passed                                                                                                                                |
+| Isolated UI and free Replay                                             | Stop returned the UI to idle and the run ledger reached `interrupted`; Chinese navigation/search and a narrower viewport were checked |
 
 A real compaction-progress filtering defect was fixed without changing its original assertions; all 90 tests in the timeline file passed. Other test fixtures were adapted for macOS path aliases and case-insensitive filesystems while retaining their behavior assertions, rather than changing production behavior to satisfy those assumptions.
 

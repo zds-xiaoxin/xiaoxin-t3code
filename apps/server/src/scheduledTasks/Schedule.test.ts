@@ -4,6 +4,36 @@ import * as DateTime from "effect/DateTime";
 import { isSameSchedule, nextScheduledRunAt } from "./Schedule.ts";
 
 describe("scheduled task schedule calculation", () => {
+  it.each(["2026-07-01T09:00:00Z", "2026-11-01T09:00:00Z", "2026-11-02T09:00:00Z"])(
+    "keeps Beijing 18:00 at UTC 10:00 across host daylight-saving changes from %s",
+    (instant) => {
+      const from = DateTime.setZone(
+        DateTime.makeUnsafe(instant),
+        DateTime.zoneMakeNamedUnsafe("America/Los_Angeles"),
+      );
+      const next = nextScheduledRunAt(
+        { type: "fixed_time", timeOfDay: "18:00", timeZone: "Asia/Shanghai" },
+        from,
+      )!;
+      expect(DateTime.formatIso(DateTime.toUtc(next))).toBe(
+        instant.replace("09:00:00Z", "10:00:00.000Z"),
+      );
+    },
+  );
+  it("uses the task's calendar day and weekdays after today's Beijing run", () => {
+    const from = DateTime.makeUnsafe("2026-11-01T10:30:00Z");
+    const next = nextScheduledRunAt(
+      { type: "fixed_time", timeOfDay: "18:00", timeZone: "Asia/Shanghai", weekdays: [1] },
+      from,
+    )!;
+    expect(DateTime.formatIso(DateTime.toUtc(next))).toBe("2026-11-02T10:00:00.000Z");
+    expect(
+      isSameSchedule(
+        { type: "fixed_time", timeOfDay: "18:00" },
+        { type: "fixed_time", timeOfDay: "18:00", timeZone: "Asia/Shanghai" },
+      ),
+    ).toBe(false);
+  });
   it("skips to the next matching fixed-time weekday", () => {
     const next = nextScheduledRunAt(
       { type: "fixed_time", timeOfDay: "09:00", weekdays: [1, 2, 3, 4, 5] },

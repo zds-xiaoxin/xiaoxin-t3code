@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { memo, useState } from "react";
 import {
   PinIcon,
@@ -207,18 +208,24 @@ export const StickyProjectsPanel = memo(function StickyProjectsPanel({
                         )}
                       />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onLocateProject(snapshot.projectKey);
-                        onClose();
-                      }}
-                      className="flex items-center gap-1.5 truncate text-left text-xs font-medium text-foreground hover:text-primary transition-colors flex-1 min-w-0"
-                      title="点击定位到侧边栏原项目"
-                    >
-                      <ProjectFavicon project={snapshot} className="size-3.5 shrink-0" />
-                      <span className="truncate">{item.title}</span>
-                    </button>
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <button
+                            type="button"
+                            onClick={() => {
+                              onLocateProject(snapshot.projectKey);
+                              onClose();
+                            }}
+                            className="flex items-center gap-1.5 truncate text-left text-xs font-medium text-foreground hover:text-primary transition-colors flex-1 min-w-0"
+                          >
+                            <ProjectFavicon project={snapshot} className="size-3.5 shrink-0" />
+                            <span className="truncate">{item.title}</span>
+                          </button>
+                        }
+                      />
+                      <TooltipPopup>点击定位到侧边栏原项目</TooltipPopup>
+                    </Tooltip>
                   </div>
 
                   {/* Actions: Reorder & Remove (Keyboard accessible) */}

@@ -5,6 +5,7 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as FileSystem from "effect/FileSystem";
 import * as DateTime from "effect/DateTime";
 import * as Layer from "effect/Layer";
 import * as SqlClient from "effect/sql/SqlClient";
@@ -13,9 +14,20 @@ import * as ServerConfig from "../config.ts";
 import * as ArtifactWall from "./ArtifactWall.ts";
 import { resolveAttachmentPath } from "../attachmentStore.ts";
 const db = NodeSqliteClient.layer({ filename: ":memory:" });
+const config = Layer.unwrap(
+  Effect.gen(function* () {
+    const fs = yield* FileSystem.FileSystem;
+    // The collector excludes /tmp; keep this scoped fixture in the workspace.
+    const baseDir = yield* fs.makeTempDirectoryScoped({
+      directory: process.cwd(),
+      prefix: ".t3-artifact-wall-",
+    });
+    return ServerConfig.layerTest(process.cwd(), baseDir);
+  }),
+);
 const layer = ArtifactWall.layer.pipe(
   Layer.provideMerge(db),
-  Layer.provideMerge(ServerConfig.layerTest(process.cwd(), { prefix: "t3-artifact-wall-" })),
+  Layer.provideMerge(config),
   Layer.provideMerge(NodeServices.layer),
 );
 const fixture = Effect.gen(function* () {

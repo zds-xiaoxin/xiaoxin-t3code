@@ -702,4 +702,8 @@ export function __setClientSettingsForTests(settings: ClientSettings): void {
   clientSettingsHydrationPromise = null;
 }
 
-export function useLegacySidebarEnabled(): boolean { return useClientSettings((settings) => settings.legacySidebarEnabled && !settings.boringSidebarEnabled); }
+export function useLegacySidebarEnabled(): boolean {
+  return useClientSettings(
+    (settings) => settings.legacySidebarEnabled && !settings.boringSidebarEnabled,
+  );
+}

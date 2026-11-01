@@ -52,35 +52,37 @@ export function DraftWorkspaceNotice({
     const original = useComposerDraftStore.getState().getDraftSession(draftId);
     if (!original || original.promotedTo) return;
     setChoosing(true);
-    try {
-      const selected = await api.contextMenu.show(
-        projectMemberMenu(category.memberProjects, threads),
-        { x: event.clientX, y: event.clientY },
-      );
-      const member = category.memberProjects.find((item) => item.physicalProjectKey === selected);
-      const store = useComposerDraftStore.getState();
-      const current = store.getDraftSession(draftId);
-      if (
-        !member ||
-        !current ||
-        current.promotedTo ||
-        current.projectId !== original.projectId ||
-        current.environmentId !== original.environmentId ||
-        !canChange()
-      )
-        return;
-      store.setDraftThreadContext(draftId, {
-        projectRef: scopeProjectRef(member.environmentId, member.id),
-        environmentSelection: "manual",
-        loadBalancedEnvironmentId: null,
-      });
-      if (!rememberDefaultMember(category.projectKey, member))
-        toastManager.add({ type: "warning", title: "目录已更换，但本机默认目录保存失败" });
-    } catch {
-      toastManager.add({ type: "error", title: "无法更换目录，请重试" });
-    } finally {
+    await (async () => {
+      try {
+        const selected = await api.contextMenu.show(
+          projectMemberMenu(category.memberProjects, threads),
+          { x: event.clientX, y: event.clientY },
+        );
+        const member = category.memberProjects.find((item) => item.physicalProjectKey === selected);
+        const store = useComposerDraftStore.getState();
+        const current = store.getDraftSession(draftId);
+        if (
+          !member ||
+          !current ||
+          current.promotedTo ||
+          current.projectId !== original.projectId ||
+          current.environmentId !== original.environmentId ||
+          !canChange()
+        )
+          return;
+        store.setDraftThreadContext(draftId, {
+          projectRef: scopeProjectRef(member.environmentId, member.id),
+          environmentSelection: "manual",
+          loadBalancedEnvironmentId: null,
+        });
+        if (!rememberDefaultMember(category.projectKey, member))
+          toastManager.add({ type: "warning", title: "目录已更换，但本机默认目录保存失败" });
+      } catch {
+        toastManager.add({ type: "error", title: "无法更换目录，请重试" });
+      }
+    })().finally(() => {
       setChoosing(false);
-    }
+    });
   };
   return (
     <div

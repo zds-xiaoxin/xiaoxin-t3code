@@ -1,5 +1,24 @@
 // Adapted from ZhiweiXiao98/t3code b604575 (MIT). Application UI copy only.
 export const zhCN: Readonly<Record<string, string>> = {
+  "Context from": "上下文来自",
+  "Show more": "显示更多",
+  "Loading commit...": "正在加载提交…",
+  "Remove {0} or re-add {0} to include terminal output.": "请移除{0}，或重新添加以包含终端输出。",
+  "Re-add {0} if you want that terminal output included.": "如需包含终端输出，请重新添加{0}。",
+  "Type a URL above, or run a dev script. Local servers this thread starts will show up here automatically.":
+    "在上方输入网址，或运行开发脚本。本会话启动的本地服务会自动显示在这里。",
+  "Could not find the latest {0} release in this environment's npm registry.":
+    "在此环境的 npm 仓库中找不到最新的{0}版本。",
+  "Could not write a review guide": "无法生成审阅指南",
+  "Side chat": "旁聊",
+  "Side chats": "旁聊",
+  "It's no longer on your T3 Connect account.": "它已不在你的 T3 Connect 账号中。",
+  "This doesn't change your T3 Connect account. To deregister it there, use":
+    "此操作不会更改你的 T3 Connect 账号。如需在账号中注销，请使用",
+  "On the computer with your code, start T3 Code or run": "在存放代码的电脑上启动 T3 Code，或运行",
+  ", then run:": "，然后运行：",
+  "On a tailnet, run": "如使用 Tailscale 网络，请改为运行",
+  "instead.": "。",
   " · {count} favorite": " · {count} 个收藏",
   " · {count} favorites": " · {count} 个收藏",
   "When you return": "返回会话时",
@@ -1061,6 +1080,14 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Shadow home path": "独立主目录路径",
   "Account-specific Codex home. Keeps auth.json separate while sharing state from CODEX_HOME.":
     "账号专用的 Codex 主目录；单独保存 auth.json，同时共享 CODEX_HOME 中的其他状态。",
+  "Interactive Claude Code (TUI)": "Claude Code 交互模式（TUI）",
+  "Time zone": "时区",
+  "Environment time zone": "使用运行环境时区",
+  "Invalid time zone": "时区无效",
+  "Use an IANA time zone, such as Asia/Shanghai.":
+    "请输入有效时区，例如 Asia/Shanghai（北京时间）。",
+  "Experimental: off uses SDK / -p; on uses the terminal UI with a separate account directory. Default accounts, fork/rollback, plugins and SDK hooks are unsupported. Failures do not fall back. Switch while tasks are idle.":
+    "实验功能：关闭使用 SDK / -p，开启使用交互式 TUI，需配置独立账号目录。不支持默认账号、分叉/回滚、插件和 SDK hooks。失败时不会自动回退，建议在任务空闲时切换。",
   "CLAUDE_CONFIG_DIR path": "CLAUDE_CONFIG_DIR 路径",
   "Custom Claude home and config directory. Keeps .claude.json and .claude separate.":
     "自定义 Claude 主目录和配置目录，分别保存 .claude.json 和 .claude。",

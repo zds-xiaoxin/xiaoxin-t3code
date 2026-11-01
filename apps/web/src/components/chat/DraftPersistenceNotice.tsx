@@ -16,12 +16,17 @@ export function DraftPersistenceNotice() {
     >
       <span className="min-w-0 basis-full sm:basis-0 sm:flex-1">
         {status === "corrupt"
-          ? uiText("Saved drafts could not be read. The original record is preserved. Export a recovery file before repairing storage.")
-          : uiText("Draft changes are only in this window. Storage is full or unavailable; export them before closing.")}
+          ? uiText(
+              "Saved drafts could not be read. The original record is preserved. Export a recovery file before repairing storage.",
+            )
+          : uiText(
+              "Draft changes are only in this window. Storage is full or unavailable; export them before closing.",
+            )}
       </span>
       {status === "unavailable" ? (
         <Button size="xs" variant="outline" onClick={retryComposerDraftPersistence}>
-          {uiText("Retry saving")}</Button>
+          {uiText("Retry saving")}
+        </Button>
       ) : null}
       <Button
         size="xs"
@@ -37,7 +42,8 @@ export function DraftPersistenceNotice() {
           window.setTimeout(() => URL.revokeObjectURL(url), 10_000);
         }}
       >
-        {uiText("Export drafts")}</Button>
+        {uiText("Export drafts")}
+      </Button>
     </div>
   );
 }

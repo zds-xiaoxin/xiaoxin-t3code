@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import type { ScopedThreadRef } from "@t3tools/contracts";
 import { useQuietThreadProjection, useThreadShell } from "../../state/entities";
 import { useEnvironment } from "../../state/environments";
@@ -26,36 +27,45 @@ export function SidebarTaskProgress({ threadRef }: { threadRef: ScopedThreadRef 
   const current = progress.steps.find((step) => step.status === "running")?.text;
   const percent = Math.round((progress.completed / progress.total) * 100);
   return (
-    <button
-      type="button"
-      title={current ? `${stateLabel}：${current}` : stateLabel}
-      aria-label={`${uiText("{completed}/{total} completed", {
-        completed: progress.completed,
-        total: progress.total,
-      })} · ${stateLabel} · ${uiText("View full progress")}`}
-      className="mx-2 mb-1.5 block w-[calc(100%-1rem)] min-w-0 rounded px-1.5 py-1 text-left text-3xs outline-none hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      onPointerDown={(event) => event.stopPropagation()}
-      onKeyDown={(event) => event.stopPropagation()}
-      onClick={(event) => {
-        event.stopPropagation();
-        setInspectorTab("run");
-        const panel = useRightPanelStore.getState();
-        panel.setThreadPanelOpen(threadRef, "inline", true);
-        panel.setThreadPanelOpen(threadRef, "popover", true);
-      }}
-    >
-      <span className="flex min-w-0 items-center gap-1.5">
-        <span className="shrink-0 tabular-nums text-sidebar-muted-foreground">
-          {progress.completed}/{progress.total}
-        </span>
-        <span className={cn("min-w-0 truncate", progressTone(progress))}>{stateLabel}</span>
-      </span>
-      <span aria-hidden className="mt-1 block h-0.5 overflow-hidden rounded-full bg-sidebar-border">
-        <span
-          className={cn("block h-full rounded-full bg-current", progressTone(progress))}
-          style={{ width: `${percent}%` }}
-        />
-      </span>
-    </button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-label={`${uiText("{completed}/{total} completed", {
+              completed: progress.completed,
+              total: progress.total,
+            })} · ${stateLabel} · ${uiText("View full progress")}`}
+            className="mx-2 mb-1.5 block w-[calc(100%-1rem)] min-w-0 rounded px-1.5 py-1 text-left text-3xs outline-none hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            onPointerDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              setInspectorTab("run");
+              const panel = useRightPanelStore.getState();
+              panel.setThreadPanelOpen(threadRef, "inline", true);
+              panel.setThreadPanelOpen(threadRef, "popover", true);
+            }}
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="shrink-0 tabular-nums text-sidebar-muted-foreground">
+                {progress.completed}/{progress.total}
+              </span>
+              <span className={cn("min-w-0 truncate", progressTone(progress))}>{stateLabel}</span>
+            </span>
+            <span
+              aria-hidden
+              className="mt-1 block h-0.5 overflow-hidden rounded-full bg-sidebar-border"
+            >
+              <span
+                className={cn("block h-full rounded-full bg-current", progressTone(progress))}
+                style={{ width: `${percent}%` }}
+              />
+            </span>
+          </button>
+        }
+      />
+      <TooltipPopup>{current ? `${stateLabel}：${current}` : stateLabel}</TooltipPopup>
+    </Tooltip>
   );
 }

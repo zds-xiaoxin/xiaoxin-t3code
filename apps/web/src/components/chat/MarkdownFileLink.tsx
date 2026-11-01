@@ -206,10 +206,10 @@ export const MarkdownFileLink = memo(function MarkdownFileLink({
       typeof ClipboardItem !== "undefined"
         ? navigator.clipboard
             .write([
-            new ClipboardItem({
-              "text/plain": value.then((text) => new Blob([text], { type: "text/plain" })),
-            }),
-          ])
+              new ClipboardItem({
+                "text/plain": value.then((text) => new Blob([text], { type: "text/plain" })),
+              }),
+            ])
             .catch(() => value.then((text) => writeTextToClipboard(text, "path")))
         : value.then((text) => writeTextToClipboard(text, "path"));
     void Promise.all([write, value]).then(

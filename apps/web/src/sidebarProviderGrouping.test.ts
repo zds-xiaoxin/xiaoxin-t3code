@@ -29,6 +29,8 @@ const project: SidebarProjectSnapshot = {
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
   groupedProjectCount: 1,
+  pinned: false,
+  archived: false,
   environmentPresence: "local-only",
   allRemoteMembersAreDesktopLocal: false,
   allRemoteMembersAreWsl: false,

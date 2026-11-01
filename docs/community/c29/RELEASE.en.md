@@ -30,17 +30,17 @@ These screenshots show the actual candidate application running with an isolated
 
 ## Validation and scope
 
-| Check | Result |
-| --- | --- |
-| Changed-source formatting, lint, both knip stages, GraphQL | Passed |
-| Package type checks | 36 packages passed |
-| Relevant automated tests | 772 tests in 64 files passed |
-| React Compiler checks | 99 passed; 1246 excluded by change scope |
-| Installer regression tests | 60 passed |
-| Server and web builds | Passed |
-| Full application signature, native payload, and icon verification | Passed; 96 native entries preserved |
-| Actual candidate UI | Chinese search, source control, general settings, empty archives, and round-trip language switching passed |
-| Window sizes | 1440×1000 and 1000×760; screenshots inspected, no document-level horizontal overflow observed |
+| Check                                                             | Result                                                                                                     |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Changed-source formatting, lint, both knip stages, GraphQL        | Passed                                                                                                     |
+| Package type checks                                               | 36 packages passed                                                                                         |
+| Relevant automated tests                                          | 772 tests in 64 files passed                                                                               |
+| React Compiler checks                                             | 99 passed; 1246 excluded by change scope                                                                   |
+| Installer regression tests                                        | 60 passed                                                                                                  |
+| Server and web builds                                             | Passed                                                                                                     |
+| Full application signature, native payload, and icon verification | Passed; 96 native entries preserved                                                                        |
+| Actual candidate UI                                               | Chinese search, source control, general settings, empty archives, and round-trip language switching passed |
+| Window sizes                                                      | 1440×1000 and 1000×760; screenshots inspected, no document-level horizontal overflow observed              |
 
 On one maintainer macOS device, C29 completed post-install application, data, authentication, and configuration readback checks. A valid idle window contained 65 renderer CPU samples: median 0.5%, P95 0.7%. This passed the window's median ≤5% and P95 ≤10% thresholds. These are observations from one device and idle workload, not a performance guarantee for other machines, long-running tasks, or generation workloads.
 

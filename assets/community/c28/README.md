@@ -43,4 +43,3 @@ C26 隔离安装包实拍，C28 保留。背景提示来自无账号测试环境
 C26 隔离安装包的 B 整图模式，C28 保留。 / C26 whole-image B mode hides the other image; retained in C28.
 
 ![整图 / Whole image](07-image-whole.png)
-

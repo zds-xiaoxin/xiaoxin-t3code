@@ -1,3 +1,5 @@
+import { uiText } from "~/i18n";
+import type { PluggableList } from "unified";
 import type { Root, RootContent } from "mdast";
 import {
   resolveWorkEntryToolPresentation,
@@ -237,3 +239,6 @@ export function remarkThoughtPreview(fallback: string) {
       : [{ type: "text", value: fallback }];
   };
 }
+
+export const THOUGHT_PREVIEW_PLUGINS: PluggableList = [[remarkThoughtPreview, uiText("Thought")]];
+export const THINKING_PREVIEW_PLUGINS: PluggableList = [[remarkThoughtPreview, uiText("Thinking")]];

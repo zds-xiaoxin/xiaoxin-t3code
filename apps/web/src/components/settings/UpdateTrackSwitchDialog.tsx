@@ -10,7 +10,7 @@ import { AsyncResult } from "effect/reactivity";
 import { APP_VERSION } from "~/branding";
 import { useDesktopUpdateState } from "~/state/desktopUpdate";
 import { useEnvironments } from "~/state/environments";
-import { npmReleaseAtom } from "~/state/npmRelease";
+import { npmReleaseAtom, npmReleaseFailureMessage } from "~/state/npmRelease";
 import { downloadLocalUpdate, installLocalUpdate } from "../sidebar/SidebarUpdatePill";
 import { UpdateEverythingDialog } from "../sidebar/UpdateEverythingDialog";
 import {
@@ -52,11 +52,14 @@ export function UpdateTrackSwitchDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>{uiText("Switch to {label}", { label })}</AlertDialogTitle>
           <AlertDialogDescription>
-            {AsyncResult.isFailure(release) || AsyncResult.isSuccess(release)
-              ? uiText("Could not find the latest {0} release on npm. Try again later.", {
-                  0: label,
-                })
-              : uiText("Checking releases…")}
+            {AsyncResult.isFailure(release)
+              ? npmReleaseFailureMessage(release.cause)
+              : AsyncResult.isSuccess(release)
+                ? uiText(
+                    "Could not find the latest {0} release in this environment's npm registry.",
+                    { 0: label },
+                  )
+                : uiText("Checking releases…")}
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

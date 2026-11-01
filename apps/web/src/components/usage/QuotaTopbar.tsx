@@ -183,7 +183,7 @@ export function QuotaTopbarView({
             status.state === "stale" && Number.isFinite(checkedAt)
               ? ` ${new Date(checkedAt).toLocaleTimeString(readUiLocale(), { hour: "2-digit", minute: "2-digit" })}`
               : "";
-          const label = `${account.label} · ${account.alias} · ${window ? windowName(window) : ""} · ${stateLabel(status.state)}${readTime} ${status.remaining === null ? "—" : `${status.remaining}%`}`;
+          const label = `${account.label} · ${account.alias} · ${window ? windowName(window) : ""} · ${stateLabel(status.state)}${readTime} ${status.remaining === null ? "–" : `${status.remaining}%`}`;
           return (
             <Tooltip key={account.id}>
               <TooltipTrigger
@@ -214,7 +214,7 @@ export function QuotaTopbarView({
                   </span>
                 ) : null}
                 <span className={styles["quota-chip-value"]}>
-                  {status.remaining === null ? "—" : `${status.remaining}%`}
+                  {status.remaining === null ? "–" : `${status.remaining}%`}
                 </span>
                 {!sharedWindow && window ? (
                   <span className={styles["quota-chip-window"]}>{windowName(window, true)}</span>
@@ -591,6 +591,7 @@ export function QuotaTopbar() {
     reportFailure: false,
   });
   const navigate = useNavigate();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Maintain the visibility listener and minute timer that advance quota age labels.
   useEffect(() => {
     // Only the age labels advance; the top bar never schedules provider probes.
     const advance = () => {
@@ -607,28 +608,30 @@ export function QuotaTopbar() {
     if (refreshing) return;
     setRefreshing(true);
     setFailed(false);
-    try {
-      const results = await Promise.all(
-        [...presentations].map(([environmentId, p]) => {
-          if (
-            p.connection.phase !== "connected" ||
-            !readEnvironmentScope(environmentId, AuthProvidersManageScope)
-          )
-            return;
-          return refreshUsageLimits(
-            environmentId,
-            () => refreshProviders({ environmentId, input: {} }),
-            automatic,
-          );
-        }),
-      );
-      if (results.some((result) => result?._tag === "Failure")) setFailed(true);
-    } catch {
-      setFailed(true);
-    } finally {
+    await (async () => {
+      try {
+        const results = await Promise.all(
+          [...presentations].map(([environmentId, p]) => {
+            if (
+              p.connection.phase !== "connected" ||
+              !readEnvironmentScope(environmentId, AuthProvidersManageScope)
+            )
+              return;
+            return refreshUsageLimits(
+              environmentId,
+              () => refreshProviders({ environmentId, input: {} }),
+              automatic,
+            );
+          }),
+        );
+        if (results.some((result) => result?._tag === "Failure")) setFailed(true);
+      } catch {
+        setFailed(true);
+      }
+    })().finally(() => {
       setNow(Date.now());
       setRefreshing(false);
-    }
+    });
   };
   return (
     <div className={styles["quota-topbar-host"]}>

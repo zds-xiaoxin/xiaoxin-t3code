@@ -221,6 +221,18 @@ describe("ServerSettings secret providers", () => {
 });
 
 describe("custom model settings", () => {
+  it("keeps Claude's interactive runtime opt-in and preserves the saved choice", () => {
+    expect(decodeClaudeSettings({}).interactiveCli).toBe(false);
+    const encode = Schema.encodeSync(ClaudeSettings);
+    for (const interactiveCli of [true, false]) {
+      const saved = encode(decodeClaudeSettings({ interactiveCli, homePath: "/isolated/account" }));
+      expect(decodeClaudeSettings(saved)).toMatchObject({
+        interactiveCli,
+        homePath: "/isolated/account",
+      });
+    }
+  });
+
   const capabilities = {
     optionDescriptors: [
       {

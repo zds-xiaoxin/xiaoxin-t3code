@@ -1,7 +1,7 @@
 import type { KeepAwakeMode } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it } from "@effect/vitest";
 
 import { keepAwakeCommandArgs, makeKeepAwakeController } from "./KeepAwake.ts";
 
@@ -45,79 +45,85 @@ function harness(input: {
         Effect.onInterrupt(() => Effect.sync(() => state.stopped.push(args.join(" ")))),
       ),
   });
-  const run = <E>(effect: Effect.Effect<unknown, E>) => Effect.runPromise(effect);
-  return { state, controller, run };
+  return { state, controller };
 }
 
 describe("makeKeepAwakeController", () => {
-  it("starts holding when a run becomes active and releases when none are left", async () => {
-    const { state, controller, run } = harness({ mode: "display", active: 0 });
-    await run(controller.reconcile);
-    expect(controller.isHolding()).toBe(false);
-
-    state.active = 2;
-    await run(controller.reconcile);
-    await run(controller.reconcile);
-    expect(state.started).toEqual(["-d -i -w 7"]);
-    expect(controller.isHolding()).toBe(true);
-
-    state.active = 0;
-    await run(controller.reconcile);
-    await Effect.runPromise(Effect.yieldNow);
-    expect(state.stopped).toEqual(["-d -i -w 7"]);
-    expect(controller.isHolding()).toBe(false);
-  });
-
-  it("swaps the assertion when the mode changes while a run is active", async () => {
-    const { state, controller, run } = harness({ mode: "display", active: 1 });
-    await run(controller.reconcile);
-    state.mode = "system";
-    await run(controller.reconcile);
-    expect(state.started).toEqual(["-d -i -w 7", "-i -w 7"]);
-    expect(state.stopped).toEqual(["-d -i -w 7"]);
-    state.mode = "off";
-    await run(controller.reconcile);
-    expect(state.stopped).toEqual(["-d -i -w 7", "-i -w 7"]);
-    expect(controller.isHolding()).toBe(false);
-  });
-
-  it("never holds on other platforms", async () => {
-    const { state, controller, run } = harness({ platform: "linux", mode: "display", active: 3 });
-    await run(controller.reconcile);
-    expect(state.started).toEqual([]);
-    expect(controller.isHolding()).toBe(false);
-  });
-
-  it("keeps the current assertion when the active-run read fails", async () => {
-    const { state, controller, run } = harness({ mode: "display", active: 1 });
-    await run(controller.reconcile);
-    state.failCount = true;
-    await expect(run(controller.reconcile)).rejects.toBeDefined();
-    expect(controller.isHolding()).toBe(true);
-    expect(state.stopped).toEqual([]);
-  });
-
-  it("release interrupts a held assertion", async () => {
-    const { state, controller, run } = harness({ mode: "system", active: 1 });
-    await run(controller.reconcile);
-    await run(controller.release);
-    expect(state.stopped).toEqual(["-i -w 7"]);
-    expect(controller.isHolding()).toBe(false);
-  });
+  it.effect("starts holding when a run becomes active and releases when none are left", () =>
+    Effect.gen(function* () {
+      const { state, controller } = harness({ mode: "display", active: 0 });
+      yield* Effect.addFinalizer(() => controller.release);
+      yield* controller.reconcile;
+      expect(controller.isHolding()).toBe(false);
+      state.active = 2;
+      yield* controller.reconcile;
+      yield* controller.reconcile;
+      expect(state.started).toEqual(["-d -i -w 7"]);
+      expect(controller.isHolding()).toBe(true);
+      state.active = 0;
+      yield* controller.reconcile;
+      yield* Effect.yieldNow;
+      expect(state.stopped).toEqual(["-d -i -w 7"]);
+      expect(controller.isHolding()).toBe(false);
+    }).pipe(Effect.scoped),
+  );
+  it.effect("swaps the assertion when the mode changes while a run is active", () =>
+    Effect.gen(function* () {
+      const { state, controller } = harness({ mode: "display", active: 1 });
+      yield* Effect.addFinalizer(() => controller.release);
+      yield* controller.reconcile;
+      state.mode = "system";
+      yield* controller.reconcile;
+      expect(state.started).toEqual(["-d -i -w 7", "-i -w 7"]);
+      expect(state.stopped).toEqual(["-d -i -w 7"]);
+      state.mode = "off";
+      yield* controller.reconcile;
+      expect(state.stopped).toEqual(["-d -i -w 7", "-i -w 7"]);
+      expect(controller.isHolding()).toBe(false);
+    }).pipe(Effect.scoped),
+  );
+  it.effect("never holds on other platforms", () =>
+    Effect.gen(function* () {
+      const { state, controller } = harness({ platform: "linux", mode: "display", active: 3 });
+      yield* Effect.addFinalizer(() => controller.release);
+      yield* controller.reconcile;
+      expect(state.started).toEqual([]);
+      expect(controller.isHolding()).toBe(false);
+    }).pipe(Effect.scoped),
+  );
+  it.effect("keeps the current assertion when the active-run read fails", () =>
+    Effect.gen(function* () {
+      const { state, controller } = harness({ mode: "display", active: 1 });
+      yield* Effect.addFinalizer(() => controller.release);
+      yield* controller.reconcile;
+      state.failCount = true;
+      expect(yield* Effect.flip(controller.reconcile)).toBeDefined();
+      expect(controller.isHolding()).toBe(true);
+      expect(state.stopped).toEqual([]);
+    }).pipe(Effect.scoped),
+  );
+  it.effect("release interrupts a held assertion", () =>
+    Effect.gen(function* () {
+      const { state, controller } = harness({ mode: "system", active: 1 });
+      yield* Effect.addFinalizer(() => controller.release);
+      yield* controller.reconcile;
+      yield* controller.release;
+      expect(state.stopped).toEqual(["-i -w 7"]);
+      expect(controller.isHolding()).toBe(false);
+    }).pipe(Effect.scoped),
+  );
 });
 
 describe("hold lifecycle", () => {
-  it("a forked hold effect stops when interrupted", async () => {
-    let stopped = false;
-    await Effect.runPromise(
-      Effect.gen(function* () {
-        const fiber = yield* Effect.forkDetach(
-          Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => (stopped = true)))),
-        );
-        yield* Effect.yieldNow;
-        yield* Fiber.interrupt(fiber);
-      }),
-    );
-    expect(stopped).toBe(true);
-  });
+  it.effect("a forked hold effect stops when interrupted", () =>
+    Effect.gen(function* () {
+      let stopped = false;
+      const fiber = yield* Effect.forkDetach(
+        Effect.never.pipe(Effect.onInterrupt(() => Effect.sync(() => (stopped = true)))),
+      );
+      yield* Effect.yieldNow;
+      yield* Fiber.interrupt(fiber);
+      expect(stopped).toBe(true);
+    }),
+  );
 });

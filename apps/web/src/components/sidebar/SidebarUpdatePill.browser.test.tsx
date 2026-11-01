@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => {
   return {
     update: null as DesktopUpdateState | null,
     hasUpdates: false,
+    legacySidebarEnabled: false,
     subscribe: (listener: () => void) => {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -26,6 +27,15 @@ vi.mock("../../state/desktopUpdate", async (importOriginal) => ({
     null,
     mocks.subscribe,
     () => mocks.update,
+  ),
+}));
+// Exercise the update control in both sidebar layouts without depending on saved client settings.
+vi.mock("../../hooks/useSettings", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../hooks/useSettings")>()),
+  useLegacySidebarEnabled: (await import("react")).useSyncExternalStore.bind(
+    null,
+    mocks.subscribe,
+    () => mocks.legacySidebarEnabled,
   ),
 }));
 // The pill only renders in the desktop app.
@@ -69,9 +79,13 @@ const RELEASE_NOTES: DesktopUpdateState["releaseNotes"] = [
   { version: "0.0.50-nightly.2", items: ["Faster sidebar."], totalItems: 1 },
 ];
 
-function setup(update: DesktopUpdateState | null, { hasUpdates = false } = {}) {
+function setup(
+  update: DesktopUpdateState | null,
+  { hasUpdates = false, legacySidebarEnabled = false } = {},
+) {
   mocks.update = update;
   mocks.hasUpdates = hasUpdates;
+  mocks.legacySidebarEnabled = legacySidebarEnabled;
 }
 
 function publish(update: DesktopUpdateState | null) {
@@ -107,9 +121,15 @@ describe("SidebarUpdatePill release notes", () => {
 
 describe("SidebarUpdatePill update everything", () => {
   it("does not refocus the update button after a pointer cancel", async () => {
-    setup(null, { hasUpdates: true });
+    setup(null, { hasUpdates: true, legacySidebarEnabled: true });
     await using screen = await render(<SidebarUpdatePill />);
     const button = screen.getByRole("button", { name: "Update everything" });
+    await expect.element(button).not.toBeInTheDocument();
+
+    await act(() => {
+      mocks.legacySidebarEnabled = false;
+      mocks.notify();
+    });
     await userEvent.click(button);
     const cancel = page.getByRole("button", { name: "Cancel" });
     await expect.element(cancel).toBeVisible();

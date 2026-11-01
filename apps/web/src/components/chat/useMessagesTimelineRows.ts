@@ -1,9 +1,14 @@
-import { useLayoutEffect, useRef } from "react";
+import { useState } from "react";
+import { createProjectionCache } from "../../hooks/projectionCache";
 import { shallow } from "zustand/vanilla/shallow";
 import type { HandoffTimelineRun } from "@t3tools/client-runtime/handoff";
-import { computeStableMessagesTimelineRows, deriveMessagesTimelineRowsWithState,
- type MessagesTimelineRowsProjection, type MessagesTimelineRow,
- type StableMessagesTimelineRowsState } from "./MessagesTimeline.logic";
+import {
+  computeStableMessagesTimelineRows,
+  deriveMessagesTimelineRowsWithState,
+  type MessagesTimelineRowsProjection,
+  type MessagesTimelineRow,
+  type StableMessagesTimelineRowsState,
+} from "./MessagesTimeline.logic";
 function handoffRunsSignature(runs: ReadonlyArray<HandoffTimelineRun>): string {
   return runs
     .map(
@@ -16,19 +21,26 @@ function handoffRunsSignature(runs: ReadonlyArray<HandoffTimelineRun>): string {
 export function useStableHandoffRuns(
   runs: ReadonlyArray<HandoffTimelineRun>,
 ): ReadonlyArray<HandoffTimelineRun> {
-  const committed = useRef<{
-    readonly source: ReadonlyArray<HandoffTimelineRun>;
-    readonly signature: string;
-    readonly value: ReadonlyArray<HandoffTimelineRun>;
-  } | null>(null);
-  const previous = committed.current;
-  const signature = previous?.source === runs ? previous.signature : handoffRunsSignature(runs);
-  const value = previous?.signature === signature ? previous.value : runs.map((run) => ({
-    id: run.id, ordinal: run.ordinal, providerInstanceId: run.providerInstanceId,
-    modelSelection: run.modelSelection,
-  }));
-  useLayoutEffect(() => { committed.current = { source: runs, signature, value }; }, [runs, signature, value]);
-  return value;
+  const [project] = useState(() =>
+    createProjectionCache<
+      ReadonlyArray<HandoffTimelineRun>,
+      { signature: string; value: ReadonlyArray<HandoffTimelineRun> }
+    >((input, previous) => {
+      const signature = handoffRunsSignature(input);
+      return previous?.signature === signature
+        ? previous
+        : {
+            signature,
+            value: input.map((run) => ({
+              id: run.id,
+              ordinal: run.ordinal,
+              providerInstanceId: run.providerInstanceId,
+              modelSelection: run.modelSelection,
+            })),
+          };
+    }),
+  );
+  return project(null, runs).value;
 }
 
 type MessagesTimelineRowsInput = MessagesTimelineRowsProjection["input"];
@@ -53,28 +65,24 @@ export function useIncrementalTimelineRows(
   identity: string,
   input: MessagesTimelineRowsInput,
 ): MessagesTimelineRow[] {
-  // Derivation must not schedule a render: callers can recreate arrays and maps
-  // when compiler memoization bails out. Commit only caches from completed renders.
-  const committed = useRef<{ identity: string; projection: MessagesTimelineRowsProjection } | null>(null);
-  const previous = committed.current;
-  const projection = previous?.identity === identity && sameRowsInput(previous.projection.input, input)
-    ? previous.projection
-    : deriveMessagesTimelineRowsWithState(input, previous?.identity === identity ? previous.projection : null);
-  useLayoutEffect(() => { committed.current = { identity, projection }; }, [identity, projection]);
-  return projection.rows;
+  const [project] = useState(() =>
+    createProjectionCache<MessagesTimelineRowsInput, MessagesTimelineRowsProjection>(
+      deriveMessagesTimelineRowsWithState,
+      sameRowsInput,
+    ),
+  );
+  return project(identity, input).rows;
 }
 
-export function useStableRows(rows: MessagesTimelineRow[], identity: string): MessagesTimelineRow[] {
-  const committed = useRef<{
-    readonly identity: string;
-    readonly source: MessagesTimelineRow[];
-    readonly stable: StableMessagesTimelineRowsState;
-  } | null>(null);
-  const previous = committed.current;
-  const stable = previous?.identity === identity && previous.source === rows
-    ? previous.stable
-    : computeStableMessagesTimelineRows(rows,
-        previous?.identity === identity ? previous.stable : { byId: new Map(), result: [] });
-  useLayoutEffect(() => { committed.current = { identity, source: rows, stable }; }, [identity, rows, stable]);
-  return stable.result;
+export function useStableRows(
+  rows: MessagesTimelineRow[],
+  identity: string,
+): MessagesTimelineRow[] {
+  const [project] = useState(() =>
+    createProjectionCache<MessagesTimelineRow[], StableMessagesTimelineRowsState>(
+      (input, previous) =>
+        computeStableMessagesTimelineRows(input, previous ?? { byId: new Map(), result: [] }),
+    ),
+  );
+  return project(identity, rows).result;
 }

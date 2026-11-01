@@ -57,9 +57,25 @@ describe("active work navigation", () => {
       .not.toBeInTheDocument();
   });
   it("labels the running provider even if the next composer selection has changed", async () => {
-    const thread = { ...children[0]!, runtime: { ...children[0]!.runtime!, providerInstanceId: ProviderInstanceId.make("codex"), providerName: "Codex" } };
-    await using screen = await render(<ActiveWorkOverview threads={[parent, thread]} projects={[]} activeKey={null} navigate={vi.fn()} />);
-    const label = [...screen.container.querySelectorAll("button")].find((button) => button.textContent?.includes("Review 0"))?.textContent;
+    const thread = {
+      ...children[0]!,
+      runtime: {
+        ...children[0]!.runtime!,
+        providerInstanceId: ProviderInstanceId.make("codex"),
+        providerName: "Codex",
+      },
+    };
+    await using screen = await render(
+      <ActiveWorkOverview
+        threads={[parent, thread]}
+        projects={[]}
+        activeKey={null}
+        navigate={vi.fn()}
+      />,
+    );
+    const label = [...screen.container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Review 0"),
+    )?.textContent;
     expect(label).toContain("Codex");
     expect(label).not.toContain("Claude");
   });
