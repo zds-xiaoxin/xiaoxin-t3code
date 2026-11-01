@@ -1,3 +1,8 @@
+import * as PtyAdapter from "@t3tools/shared/PtyAdapter";
+import {
+  makeClaudeTerminalQueryFactory,
+  type ClaudeTerminalQueryRuntime,
+} from "./ClaudeTerminalQuery.ts";
 import * as DocumentText from "../../provider/DocumentText.ts";
 import { makeProviderTextDeltaCoalescer } from "./ProviderTextDeltaCoalescer.ts";
 import { claudeTaskOutputRoot, tailClaudeTaskOutput } from "./ClaudeTaskOutputTail.ts";
@@ -494,10 +499,14 @@ type ClaudeAgentSdkThreadIdentity =
       readonly sessionId?: never;
       readonly resume: string;
     };
+class ClaudeInteractiveRuntimeSetupError extends Error {}
+
 export type ClaudeAgentSdkQueryOptions = Omit<
   ClaudeQueryOptions,
   "maxTurns" | "model" | "permissionMode" | "resume" | "sessionId" | "tools"
 > & {
+  readonly interactiveCli?: boolean;
+  readonly terminalSubagentContext?: string;
   readonly model: string;
   readonly tools: NonNullable<ClaudeQueryOptions["tools"]>;
   readonly permissionMode: NonNullable<ClaudeQueryOptions["permissionMode"]>;
@@ -536,7 +545,9 @@ export class ClaudeAgentSdkQueryRunnerError extends Schema.TaggedError<ClaudeAge
   },
 ) {
   override get message(): string {
-    return "Claude Agent SDK query failed.";
+    return this.cause instanceof ClaudeInteractiveRuntimeSetupError
+      ? this.cause.message
+      : "Claude Agent SDK query failed.";
   }
 }
 class ClaudeMcpRegistrationTimeoutError extends Schema.TaggedError<ClaudeMcpRegistrationTimeoutError>()(
@@ -634,14 +645,17 @@ function queryRunnerError(cause: unknown, method: string): ClaudeAgentSdkQueryRu
     ? cause
     : new ClaudeAgentSdkQueryRunnerError({ cause, method });
 }
-function closeClaudeQuery(queryRuntime: ClaudeQuery) {
+type ClaudeQueryRuntime = ClaudeQuery | ClaudeTerminalQueryRuntime;
+function closeClaudeQuery(queryRuntime: ClaudeQueryRuntime) {
   return Effect.try({
     try: () => queryRuntime.close(),
     catch: (cause) => queryRunnerError(cause, "close"),
   });
 }
 // Iterate Query itself: the raw generator's return() queues behind a pending CLI read and deadlocks interruption.
-export function claudeQueryMessages(queryRuntime: ClaudeQuery): AsyncIterable<SDKMessage, void> {
+export function claudeQueryMessages(
+  queryRuntime: ClaudeQueryRuntime,
+): AsyncIterable<SDKMessage, void> {
   return { [Symbol.asyncIterator]: () => queryRuntime };
 }
 export interface ClaudeAgentSdkLoggedQueryOptions {
@@ -915,6 +929,7 @@ export const layerQueryRunner: Layer.Layer<
     const runFork = Effect.runForkWith(yield* Effect.context<never>());
     const hostEnvironment = yield* HostProcess.Environment;
     const portDiscovery = yield* PortScanner.PortDiscovery;
+    const terminalSandbox = hostEnvironment.T3_CLAUDE_TUI_SANDBOX;
 
     return ClaudeAgentSdkQueryRunner.of({
       allocateSessionId: crypto
@@ -922,6 +937,22 @@ export const layerQueryRunner: Layer.Layer<
         .pipe(Effect.mapError((cause) => queryRunnerError(cause, "allocateSessionId"))),
       open: Effect.fn("ClaudeAgentSdkQueryRunner.open")(
         function* (input: ClaudeAgentSdkQueryOpenInput) {
+          const interactiveCli = input.options.interactiveCli === true;
+          const terminalFactory = interactiveCli
+            ? yield* Effect.gen(function* () {
+                const pty = yield* Effect.serviceOption(PtyAdapter.PtyAdapter);
+                if (Option.isNone(pty))
+                  return yield* queryRunnerError(
+                    new ClaudeInteractiveRuntimeSetupError(
+                      "Claude TUI requires a PTY adapter. Turn off Interactive Claude Code (TUI) to use SDK / -p. No fallback was started.",
+                    ),
+                    "query",
+                  );
+                return yield* makeClaudeTerminalQueryFactory.pipe(
+                  Effect.provideService(PtyAdapter.PtyAdapter, pty.value),
+                );
+              })
+            : undefined;
           const protocolLogger = makeClaudeAgentSdkProtocolLogger({
             nativeEventLogger,
             threadId: input.threadId,
@@ -938,7 +969,12 @@ export const layerQueryRunner: Layer.Layer<
             Stream.toAsyncIterable,
           );
           // Send MCP credentials over stdin to keep them out of SDK argv and inherited command environments.
-          const { mcpServers, ...sdkOptions } = input.options;
+          const {
+            mcpServers,
+            interactiveCli: _interactiveCli,
+            terminalSubagentContext,
+            ...sdkOptions
+          } = input.options;
           // Jobs the agent starts inherit the thread, so port discovery can attribute their servers.
           const queryOptions = {
             ...sdkOptions,
@@ -950,6 +986,7 @@ export const layerQueryRunner: Layer.Layer<
           // The SDK can prepend a scope wrapper to native binaries; script entries run through node.
           const binaryPath = queryOptions.pathToClaudeCodeExecutable;
           const launch =
+            interactiveCli ||
             binaryPath === undefined ||
             CLAUDE_SCRIPT_EXTENSIONS.some((ext) => binaryPath.endsWith(ext))
               ? undefined
@@ -1011,10 +1048,22 @@ export const layerQueryRunner: Layer.Layer<
           const queryRuntime = yield* Effect.uninterruptibleMask((restore) =>
             Effect.try({
               try: () =>
-                query({
-                  prompt,
-                  options: { ...options, spawnClaudeCodeProcess },
-                }),
+                terminalFactory !== undefined
+                  ? terminalFactory({
+                      prompt,
+                      options: {
+                        ...queryOptions,
+                        ...(terminalSubagentContext === undefined
+                          ? {}
+                          : { terminalSubagentContext }),
+                        ...(mcpServers === undefined ? {} : { mcpServers }),
+                      },
+                      ...(terminalSandbox === undefined ? {} : { sandbox: terminalSandbox }),
+                    })
+                  : query({
+                      prompt,
+                      options: { ...options, spawnClaudeCodeProcess },
+                    }),
               catch: (cause) => queryRunnerError(cause, "query"),
             }).pipe(
               Effect.tap((queryRuntime) =>
@@ -1054,6 +1103,12 @@ export const layerQueryRunner: Layer.Layer<
                           },
                         );
                       }
+                    }
+                    if (interactiveCli) {
+                      yield* Effect.logInfo("orchestration-v2.claude-backend", {
+                        backend: "interactive-tui-prototype",
+                        sdkFallback: false,
+                      });
                     }
                     yield* logProtocolEvent({
                       direction: "outgoing",
@@ -1197,7 +1252,9 @@ export const layerQueryRunner: Layer.Layer<
                 ),
               ),
             interrupt: Effect.tryPromise({
-              try: () => queryRuntime.interrupt(),
+              try: async () => {
+                await queryRuntime.interrupt();
+              },
               catch: (cause) => queryRunnerError(cause, "interrupt"),
             }).pipe(
               Effect.tap(() =>
@@ -1500,6 +1557,7 @@ export function makeClaudeQueryOptions(input: {
         } as ClaudeSdkSettings);
   const deviceInstructions = input.mcpServers !== undefined && input.deviceToolsAvailable === true;
   const options: ClaudeAgentSdkQueryOptions = {
+    ...(input.settings?.interactiveCli === true ? { interactiveCli: true } : {}),
     model: compiledSelection.apiModelId,
     tools: claudeAgentSdkQueryToolsForSdk(selectedTools),
     permissionMode:
@@ -1560,7 +1618,9 @@ export function makeClaudeQueryOptions(input: {
       ].join("\n\n"),
     },
     ...(deviceInstructions
-      ? { hooks: { SubagentStart: [{ hooks: [subagentDeviceInstructions] }] } }
+      ? input.settings?.interactiveCli === true
+        ? { terminalSubagentContext: T3_CODE_DEVICE_TOOL_INSTRUCTIONS_WITH_TOOL_SEARCH }
+        : { hooks: { SubagentStart: [{ hooks: [subagentDeviceInstructions] }] } }
       : {}),
     ...(Object.keys(extraArgs).length === 0 ? {} : { extraArgs }),
   };

@@ -110,7 +110,8 @@ function describeSchedule(task: ScheduledTask): string {
   if (task.schedule.type === "webhook") return "On webhook";
   if (task.schedule.type === "interval") return formatScheduledTaskInterval(task.schedule.everyMs);
   const days = task.schedule.weekdays?.length ? repeatLabel(task.schedule.weekdays) : "Every day";
-  return `${days} at ${formatTime(task.schedule.timeOfDay)}`;
+  const label = `${days} at ${formatTime(task.schedule.timeOfDay)}`;
+  return task.schedule.timeZone ? `${label} (${task.schedule.timeZone})` : label;
 }
 
 function formatTime(value: string): string {
@@ -1007,6 +1008,15 @@ function TaskForm({
                   }}
                 />
               ) : null}
+              <FormField
+                label="Time zone"
+                value={draft.schedule.timeZone ?? ""}
+                placeholder="Environment time zone (e.g. Asia/Shanghai)"
+                borderTop
+                onChange={(timeZone) =>
+                  setDraft({ ...draft, schedule: { ...draft.schedule, timeZone } })
+                }
+              />
               <SelectRow
                 label="Repeat"
                 value={repeatLabel(draft.schedule.weekdays)}

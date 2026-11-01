@@ -1,5 +1,6 @@
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import {
+  ClaudeSettings,
   DEFAULT_SERVER_SETTINGS,
   ModelSelection,
   ProjectId,
@@ -33,6 +34,7 @@ import { writeFileStringAtomically } from "@t3tools/shared/atomicWrite";
 import * as ServerSettingsModule from "./serverSettings.ts";
 import { resolveProviderInstanceTerminalEnvironment } from "./terminal/Manager.ts";
 
+const decodeClaudeSettings = Schema.decodeUnknownEffect(ClaudeSettings);
 const decodeServerSettings = Schema.decodeUnknownEffect(ServerSettings);
 const decodeServerSettingsJson = Schema.decodeUnknownEffect(Schema.fromJsonString(ServerSettings));
 const decodeServerSettingsPatch = Schema.decodeUnknownEffect(ServerSettingsPatch);
@@ -367,9 +369,19 @@ it.layer(NodeServices.layer)("server settings", (it) => {
   it.effect("deep merges nested settings updates without dropping siblings", () =>
     Effect.gen(function* () {
       const serverSettings = yield* ServerSettingsModule.ServerSettingsService;
+      const claudeTest = ProviderInstanceId.make("claude_test");
+      const claudeOther = ProviderInstanceId.make("claude_other");
+      const claudeDriver = ProviderDriverKind.make("claudeAgent");
 
       yield* serverSettings.updateSettings({
         observability: { otlpTracesUrl: "http://localhost:4318/v1/traces" },
+        providerInstances: {
+          [claudeTest]: {
+            driver: claudeDriver,
+            config: { homePath: "/isolated/account", interactiveCli: false },
+          },
+          [claudeOther]: { driver: claudeDriver, config: { homePath: "/other/account" } },
+        },
         textGenerationModelSelection: {
           instanceId: ProviderInstanceId.make("codex"),
           model: DEFAULT_SERVER_SETTINGS.textGenerationModelSelection.model,
@@ -386,6 +398,13 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       const next = yield* serverSettings.updateSettings({
         observability: { otlpMetricsUrl: "http://localhost:4318/v1/metrics" },
+        providerInstances: {
+          [claudeTest]: {
+            driver: claudeDriver,
+            config: { homePath: "/isolated/account", interactiveCli: true },
+          },
+          [claudeOther]: { driver: claudeDriver, config: { homePath: "/other/account" } },
+        },
         textGenerationModelSelection: {
           options: [{ id: "fastMode", value: false }],
         },
@@ -393,6 +412,35 @@ it.layer(NodeServices.layer)("server settings", (it) => {
 
       assert.equal(next.observability.otlpTracesUrl, "http://localhost:4318/v1/traces");
       assert.equal(next.observability.otlpMetricsUrl, "http://localhost:4318/v1/metrics");
+      assert.deepEqual(next.providerInstances[claudeTest]?.config, {
+        homePath: "/isolated/account",
+        interactiveCli: true,
+      });
+      assert.deepEqual(next.providerInstances[claudeOther]?.config, { homePath: "/other/account" });
+      yield* serverSettings.updateSettings({
+        providerInstances: {
+          ...next.providerInstances,
+          [claudeTest]: {
+            driver: claudeDriver,
+            config: { homePath: "/isolated/account" },
+          },
+        },
+      });
+      const fs = yield* FileSystem.FileSystem;
+      const config = yield* ServerConfig.ServerConfig;
+      const persisted = JSON.parse(yield* fs.readFileString(config.settingsPath)) as {
+        providerInstances: Record<string, { config: unknown }>;
+      };
+      assert.deepEqual(persisted.providerInstances[claudeTest]?.config, {
+        homePath: "/isolated/account",
+      });
+      assert.isFalse(
+        (yield* decodeClaudeSettings(persisted.providerInstances[claudeTest]?.config))
+          .interactiveCli,
+      );
+      assert.deepEqual(persisted.providerInstances[claudeOther]?.config, {
+        homePath: "/other/account",
+      });
       assert.deepEqual(
         next.textGenerationModelSelection,
         createModelSelection(

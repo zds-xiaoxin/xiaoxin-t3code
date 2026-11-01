@@ -1,4 +1,6 @@
 import { uiText } from "~/i18n";
+import * as Schema from "effect/Schema";
+import { ScheduledTaskTimeZone } from "@t3tools/contracts";
 import { isWebhookDedupeTemplate } from "@t3tools/contracts";
 import {
   EnvironmentId,
@@ -27,6 +29,7 @@ import {
 import type { ProviderInstanceEntry } from "../../providerInstances";
 
 import type { ResolvedSettingsScope } from "./settingsScope";
+const isValidTimeZone = Schema.is(ScheduledTaskTimeZone);
 
 export function matchesScheduledTaskScope(
   scope: ResolvedSettingsScope,
@@ -64,6 +67,7 @@ export interface DraftState {
   readonly scheduleMode: ScheduleMode;
   readonly intervalMinutes: string;
   readonly timeOfDay: string;
+  readonly timeZone?: string;
   readonly weekdays: ReadonlySet<number>;
   readonly projectId: string;
   readonly threadId: string;
@@ -190,9 +194,12 @@ export function scheduleFromDraft(draft: DraftState): ScheduledTaskUpsertSchedul
     return { type: "interval", everyMs };
   }
   const selectedEveryDay = draft.weekdays.size === 0 || draft.weekdays.size === 7;
+  const timeZone = draft.timeZone?.trim();
+  if (timeZone && !isValidTimeZone(timeZone)) return null;
   return {
     type: "fixed_time",
     timeOfDay: draft.timeOfDay || "09:00",
+    ...(timeZone ? { timeZone } : {}),
     ...(selectedEveryDay ? {} : { weekdays: [...draft.weekdays].toSorted() }),
   };
 }
@@ -214,6 +221,7 @@ export function taskToDraft(task: ScheduledTask): DraftState {
     intervalMinutes:
       schedule.type === "interval" ? String(Math.max(1, schedule.everyMs / 60_000)) : "15",
     timeOfDay: schedule.type === "fixed_time" ? schedule.timeOfDay : "09:00",
+    timeZone: schedule.type === "fixed_time" ? (schedule.timeZone ?? "") : "",
     weekdays,
     projectId: task.projectId,
     threadId: task.threadId ?? "",

@@ -1,3 +1,5 @@
+import * as Cause from "effect/Cause";
+import * as PtyAdapter from "@t3tools/shared/PtyAdapter";
 // @effect-diagnostics nodeBuiltinImport:off -- workflow fixtures use files and the fake Claude CLI uses Node streams
 import * as NodeEvents from "node:events";
 import * as NodeFS from "node:fs";
@@ -235,6 +237,19 @@ function makeClaudeTestTurnInput(input: {
 }
 
 describe("ClaudeAdapterV2 runtime query policy", () => {
+  it.each([false, true])(
+    "takes the interactive runtime choice from its Claude instance: %s",
+    (interactiveCli) => {
+      const options = ClaudeAdapterV2.makeClaudeQueryOptions({
+        modelSelection: CLAUDE_TEST_MODEL_SELECTION,
+        nativeThreadId: "runtime-choice-thread",
+        resume: false,
+        cwd: "/workspace",
+        settings: { ...DEFAULT_CLAUDE_SETTINGS, interactiveCli },
+      });
+      assert.equal(options.interactiveCli === true, interactiveCli);
+    },
+  );
   it.each([
     "-- --thinking-display omitted",
     "--thinking-display summarized -- --thinking-display omitted",
@@ -662,7 +677,11 @@ describe("ClaudeAdapterV2 native protocol logging", () => {
 });
 
 describe("ClaudeAdapterV2 device instructions", () => {
-  const options = (input: { readonly mcp: boolean; readonly deviceToolsAvailable: boolean }) =>
+  const options = (input: {
+    readonly mcp: boolean;
+    readonly deviceToolsAvailable: boolean;
+    readonly interactiveCli?: boolean;
+  }) =>
     ClaudeAdapterV2.makeClaudeQueryOptions({
       modelSelection: {
         instanceId: ProviderInstanceId.make("claudeAgent"),
@@ -676,6 +695,9 @@ describe("ClaudeAdapterV2 device instructions", () => {
         : {}),
       deviceToolsAvailable: input.deviceToolsAvailable,
       environment: {},
+      ...(input.interactiveCli
+        ? { settings: { ...DEFAULT_CLAUDE_SETTINGS, interactiveCli: true } }
+        : {}),
     });
   const append = (input: { readonly mcp: boolean; readonly deviceToolsAvailable: boolean }) =>
     (options(input).systemPrompt as { readonly append?: string }).append ?? "";
@@ -684,6 +706,15 @@ describe("ClaudeAdapterV2 device instructions", () => {
     const text = append({ mcp: true, deviceToolsAvailable: true });
     assert.include(text, T3_CODE_DEVICE_TOOL_INSTRUCTIONS_WITH_TOOL_SEARCH);
     assert.include(text, "Use `delegate_task`");
+  });
+  it("preserves device instructions through the native hook channel in TUI mode", () => {
+    const tui = options({ mcp: true, deviceToolsAvailable: true, interactiveCli: true });
+    assert.equal(tui.terminalSubagentContext, T3_CODE_DEVICE_TOOL_INSTRUCTIONS_WITH_TOOL_SEARCH);
+    assert.isUndefined(tui.hooks);
+    assert.isUndefined(
+      options({ mcp: true, deviceToolsAvailable: false, interactiveCli: true })
+        .terminalSubagentContext,
+    );
   });
 
   it("leaves the device block out without device access or without T3 tools", () => {
@@ -2420,6 +2451,7 @@ describe("ClaudeAdapterV2 MCP credential channel", () => {
   const openWith = (
     cli: ReturnType<typeof makeFakeClaudeCli>,
     native?: ProviderEventLoggers.EventNdjsonLogger,
+    interactiveCli = false,
   ) =>
     Effect.gen(function* () {
       const runner = yield* ClaudeAdapterV2.ClaudeAgentSdkQueryRunner;
@@ -2428,6 +2460,7 @@ describe("ClaudeAdapterV2 MCP credential channel", () => {
         providerSessionId: ProviderSessionId.make("provider-session-claude-mcp-channel"),
         options: {
           ...ClaudeAdapterV2.makeClaudeQueryOptions({
+            settings: { ...DEFAULT_CLAUDE_SETTINGS, interactiveCli },
             modelSelection: CLAUDE_TEST_MODEL_SELECTION,
             nativeThreadId: "native-thread-claude-mcp-channel",
             resume: false,
@@ -2447,6 +2480,56 @@ describe("ClaudeAdapterV2 MCP credential channel", () => {
       }),
       Effect.provide(NodeServices.layer),
     );
+
+  it.effect("keeps SDK selected when TUI is off, even on a TUI test server", () =>
+    Effect.gen(function* () {
+      const cli = makeFakeClaudeCli();
+      const session = yield* openWith(cli).pipe(
+        Effect.provideService(HostProcess.Environment, {
+          T3_CLAUDE_TUI_SANDBOX: "/unused-sandbox",
+        }),
+      );
+      assert.equal(cli.spawns.length, 1);
+      yield* session.close;
+      assert.isTrue(cli.closed());
+    }),
+  );
+  it.effect("reports an unavailable TUI without starting the SDK", () =>
+    Effect.gen(function* () {
+      const cli = makeFakeClaudeCli();
+      const exit = yield* openWith(cli, undefined, true).pipe(
+        Effect.provideService(HostProcess.Environment, {}),
+        Effect.exit,
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      if (Exit.isFailure(exit))
+        assert.include(Cause.pretty(exit.cause), "Claude TUI requires a PTY adapter");
+      assert.equal(cli.spawns.length, 0);
+    }),
+  );
+
+  it.effect("rejects a TUI sandbox mismatch without starting the SDK", () =>
+    Effect.gen(function* () {
+      const cli = makeFakeClaudeCli();
+      let terminalSpawns = 0;
+      const exit = yield* openWith(cli, undefined, true).pipe(
+        Effect.provideService(HostProcess.Environment, {
+          T3_CLAUDE_TUI_SANDBOX: "/deliberately-missing-t3-sandbox",
+        }),
+        Effect.provideService(PtyAdapter.PtyAdapter, {
+          spawn: () =>
+            Effect.sync(() => {
+              terminalSpawns++;
+              throw new Error("Unexpected PTY spawn");
+            }),
+        }),
+        Effect.exit,
+      );
+      assert.isTrue(Exit.isFailure(exit));
+      assert.equal(cli.spawns.length, 0);
+      assert.equal(terminalSpawns, 0);
+    }),
+  );
 
   it.effect("commits queued delivery before interruptible protocol logging", () =>
     Effect.gen(function* () {

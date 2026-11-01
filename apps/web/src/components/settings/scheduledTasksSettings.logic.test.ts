@@ -144,6 +144,12 @@ const legacyTask: ScheduledTask = {
 };
 
 describe("editing scheduled task branch settings", () => {
+  it("keeps an explicit time zone on save and rejects an invalid zone", () => {
+    const schedule = { type: "fixed_time" as const, timeOfDay: "18:00", timeZone: "Asia/Shanghai" };
+    const draft = taskToDraft({ ...legacyTask, schedule });
+    expect(scheduleFromDraft(draft)).toEqual(schedule);
+    expect(scheduleFromDraft({ ...draft, timeZone: "invalid/timezone" })).toBeNull();
+  });
   it("keeps an omitted origin flag on the local base branch", () => {
     const draft = taskToDraft(legacyTask);
     expect(draft.baseRef).toBe("release");

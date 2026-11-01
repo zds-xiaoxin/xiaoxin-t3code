@@ -11,6 +11,19 @@ import {
 } from "./ProviderSettingsForm";
 
 describe("ProviderSettingsForm helpers", () => {
+  it("lets a Claude instance switch runtimes without changing its account or other config", () => {
+    const claude = providerClients.get(ProviderDriverKind.make("claudeAgent"));
+    const field = deriveProviderSettingsFields(claude!).find(
+      (field) => field.key === "interactiveCli",
+    );
+    expect(field).toMatchObject({ control: "switch", defaultBooleanValue: false });
+    const account = { homePath: "/isolated/account", autoCompactWindow: "200000", forkOwned: 1 };
+    const on = nextProviderConfigWithFieldValue(account, field!, true);
+    expect(on).toEqual({ ...account, interactiveCli: true });
+    const off = nextProviderConfigWithFieldValue(on, field!, false);
+    expect(off).toEqual(account);
+  });
+
   it("keeps every masked field as a stored secret", () => {
     const settingsSchema = makeProviderSettingsSchema({
       token: TrimmedString.pipe(

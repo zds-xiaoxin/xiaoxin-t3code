@@ -41,6 +41,28 @@ Claude Code's verbose mode can stay enabled when you use Claude for text generat
 thread titles, branch names, commit messages, and pull request descriptions. On a remote connection,
 T3 Code uses the Claude configuration on the connected server.
 
+## Interactive mode (experimental)
+
+Each Claude instance has an **Interactive Claude Code (TUI)** switch in
+**Settings > Providers**. It is off by default, keeping the existing SDK / `-p`
+connection. Turning it on selects the interactive terminal runtime for that instance.
+Switch while tasks are idle; the choice does not replace its configured account.
+
+TUI requires an explicit separate account directory in the instance's **Home path**;
+the default Claude account and directory aliases are rejected. It uses that account's
+existing login and transcripts, with private runtime directories below `.t3-terminal/`.
+The real OS home is retained for macOS Keychain access, as in the standard T3
+connection; `CLAUDE_CONFIG_DIR` selects the separate account. This is account
+separation, not an OS sandbox.
+Normal project directories are supported. The default Claude desktop account is
+not selected or reconfigured.
+
+This is an experimental runtime: fork/rollback, plugins, SDK hooks and stdio MCP
+are unsupported. User/project settings files are not loaded; T3 supplies its own
+runtime settings. If unavailable or unsupported, the request fails with an explanation
+instead of silently using SDK / `-p`. Turn the switch off to return to the standard
+connection. Functional tests do not establish a quota-saving multiplier.
+
 ## Compact long conversations
 
 Set **Auto-compact after** in the Claude provider settings to an integer between

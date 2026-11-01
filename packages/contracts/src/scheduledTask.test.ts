@@ -11,6 +11,16 @@ const decodeSchedule = Schema.decodeUnknownSync(ScheduledTaskSchedule);
 const decodeUpsertSchedule = Schema.decodeUnknownSync(ScheduledTaskUpsertSchedule);
 
 describe("ScheduledTaskSchedule", () => {
+  it("preserves an explicit named time zone and rejects invalid zones", () => {
+    const schedule = { type: "fixed_time", timeOfDay: "18:00", timeZone: "Asia/Shanghai" };
+    expect(decodeSchedule(schedule)).toEqual(schedule);
+    expect(decodeUpsertSchedule(schedule)).toEqual(schedule);
+    expect(() => decodeUpsertSchedule({ ...schedule, timeZone: "not/a-zone" })).toThrow();
+    expect(decodeSchedule({ type: "fixed_time", timeOfDay: "18:00" })).toEqual({
+      type: "fixed_time",
+      timeOfDay: "18:00",
+    });
+  });
   it("keeps legacy sub-minute persisted schedules readable", () => {
     expect(
       decodeSchedule({

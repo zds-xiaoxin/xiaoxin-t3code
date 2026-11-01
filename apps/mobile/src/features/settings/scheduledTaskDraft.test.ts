@@ -14,6 +14,12 @@ import {
 } from "./scheduledTaskDraft";
 
 describe("scheduleDraftForTask", () => {
+  it("keeps an explicit time zone when editing and rejects an unknown zone", () => {
+    const schedule = { type: "fixed_time" as const, timeOfDay: "18:00", timeZone: "Asia/Shanghai" };
+    const draft = scheduleDraftForTask({ schedule });
+    expect(scheduleFromDraft(draft)).toEqual(schedule);
+    expect(scheduleFromDraft({ ...draft, timeZone: "bad/zone" })).toBeNull();
+  });
   it("opens legacy sub-minute schedules at the writable minimum", () => {
     const draft = scheduleDraftForTask({ schedule: { type: "interval", everyMs: 30_000 } });
     expect(draft.intervalMinutes).toBe("1");

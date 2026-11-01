@@ -67,7 +67,7 @@ const OrchestratorMcpSchedule = Schema.Union([
   OrchestratorMcpScheduleFromJsonString,
 ]).annotate({
   description:
-    "Trigger: {type:'interval',everyMs}, {type:'fixed_time',timeOfDay,weekdays?}, or {type:'webhook'}.",
+    "Trigger: {type:'interval',everyMs}, {type:'fixed_time',timeOfDay,timeZone?,weekdays?}, or {type:'webhook'}. timeZone uses IANA names such as Asia/Shanghai.",
 });
 
 const OrchestratorMcpTargetOptionsFromRecord = Schema.Record(

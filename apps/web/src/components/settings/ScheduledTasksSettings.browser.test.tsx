@@ -40,7 +40,12 @@ const task: ScheduledTask = {
   runCount: 0,
 };
 
-const state = vi.hoisted(() => ({ connected: true, tasksLoaded: true, secondary: false }));
+const state = vi.hoisted(() => ({
+  connected: true,
+  tasksLoaded: true,
+  secondary: false,
+  fixedZone: false,
+}));
 const secondaryId = EnvironmentId.make("secondary");
 const permissions = new Map<string, Atom.Writable<boolean>>();
 
@@ -48,6 +53,7 @@ function setup() {
   state.connected = true;
   state.tasksLoaded = true;
   state.secondary = false;
+  state.fixedZone = false;
   permissions.clear();
   permissions.set(environmentId, Atom.make(true));
   permissions.set(secondaryId, Atom.make(true));
@@ -106,7 +112,25 @@ vi.mock(import("../../state/server"), async (original) => {
 vi.mock(import("../../state/query"), async (original) => ({
   ...(await original()),
   useEnvironmentQuery: ((request: unknown) => ({
-    data: request === null ? null : { tasks: state.tasksLoaded ? [task] : [] },
+    data:
+      request === null
+        ? null
+        : {
+            tasks: state.tasksLoaded
+              ? [
+                  state.fixedZone
+                    ? {
+                        ...task,
+                        schedule: {
+                          type: "fixed_time",
+                          timeOfDay: "18:00",
+                          timeZone: "Asia/Shanghai",
+                        },
+                      }
+                    : task,
+                ]
+              : [],
+          },
     error: null,
     isPending: false,
     refresh: vi.fn(),
@@ -178,6 +202,18 @@ describe("ScheduledTasksSettings", () => {
     state.connected = true;
     await screen.rerender(<ScheduledTasksSettings taskId={task.id} />);
     await expect.element(name).toHaveValue("Review stale issues");
+  });
+  it("shows and edits an explicit schedule time zone", async () => {
+    setup();
+    state.fixedZone = true;
+    await using screen = await render(<ScheduledTasksSettings taskId={task.id} />);
+    const zone = page.getByRole("dialog").getByRole("textbox", { name: "Time zone", exact: true });
+    await expect.element(zone).toHaveValue("Asia/Shanghai");
+    await userEvent.fill(zone, "UTC");
+    await expect.element(zone).toHaveValue("UTC");
+    state.connected = false;
+    await screen.rerender(<ScheduledTasksSettings taskId={task.id} />);
+    await expect.element(zone).toHaveValue("UTC");
   });
 
   it("keeps an editor the user opened when the linked task loads later", async () => {

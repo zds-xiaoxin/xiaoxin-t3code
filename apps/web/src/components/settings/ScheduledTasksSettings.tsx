@@ -291,7 +291,8 @@ export function scheduleLabel(schedule: ScheduledTaskSchedule): string {
       : weekdays.length === 5 && weekdays.every((day) => day >= 1 && day <= 5)
         ? "Weekdays"
         : weekdays.map((day) => WEEKDAY_LABELS[day]).join(", ");
-  return uiText("{0} at {1}", { "0": days, "1": schedule.timeOfDay });
+  const label = uiText("{0} at {1}", { "0": days, "1": schedule.timeOfDay });
+  return schedule.timeZone ? `${label} (${schedule.timeZone})` : label;
 }
 /** formatRelativeTime handles only the past; upcoming runs need future labels. */
 function relativeLabel(value: string | null, nowMs: number): string {
@@ -1229,6 +1230,11 @@ function ScheduledTaskEditorForm({
     }
     const schedule = scheduleFromDraft(draft);
     if (schedule === null) {
+      if (draft.scheduleMode === "fixed")
+        reportFailure(
+          uiText("Invalid time zone"),
+          uiText("Use an IANA time zone, such as Asia/Shanghai."),
+        );
       for (const error of webhookDraftErrors(draft)) reportFailure(error.title, error.description);
       return;
     }
@@ -1728,6 +1734,19 @@ function ScheduledTaskEditorForm({
                     }
                   />
                   <span className="text-xs text-muted-foreground">{uiText("on")}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="scheduled-task-time-zone">{uiText("Time zone")}</Label>
+                  <Input
+                    id="scheduled-task-time-zone"
+                    nativeInput
+                    className="w-48"
+                    value={draft.timeZone ?? ""}
+                    placeholder={uiText("Environment time zone")}
+                    onChange={(event) =>
+                      setDraft((current) => ({ ...current, timeZone: event.target.value }))
+                    }
+                  />
                 </div>
                 <ToggleGroup
                   multiple

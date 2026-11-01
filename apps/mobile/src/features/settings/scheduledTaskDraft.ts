@@ -1,4 +1,6 @@
 import { isWebhookDedupeTemplate } from "@t3tools/contracts";
+import { ScheduledTaskTimeZone } from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
 import type {
   ModelSelection,
   ServerConfig,
@@ -26,6 +28,7 @@ import {
   resolveDefaultableModelSelection,
   resolveNewTaskModelSelection,
 } from "../../lib/modelOptions";
+const isValidTimeZone = Schema.is(ScheduledTaskTimeZone);
 
 export function scheduledTaskDefaultModel(
   config: ServerConfig | null,
@@ -53,6 +56,7 @@ export function scheduledTaskDefaultModel(
 export type ScheduleDraft = {
   readonly mode: "fixed_time" | "interval" | "webhook";
   readonly timeOfDay: string;
+  readonly timeZone?: string;
   readonly weekdays: ReadonlyArray<number>;
   readonly intervalMinutes: string;
   readonly signature: ScheduledTaskWebhookSignature | null;
@@ -85,6 +89,7 @@ export function scheduleDraftForTask(task: Pick<ScheduledTask, "schedule">): Sch
       return {
         ...DEFAULT_SCHEDULE,
         timeOfDay: task.schedule.timeOfDay,
+        timeZone: task.schedule.timeZone ?? "",
         weekdays: task.schedule.weekdays?.length
           ? [...new Set(task.schedule.weekdays)].sort((a, b) => a - b)
           : [0, 1, 2, 3, 4, 5, 6],
@@ -168,6 +173,8 @@ export function scheduleFromDraft(draft: ScheduleDraft): ScheduledTaskUpsertSche
     return minutes >= 1 && Number.isSafeInteger(everyMs) ? { type: "interval", everyMs } : null;
   }
   const weekdays = [...new Set(draft.weekdays)].sort((a, b) => a - b);
+  const timeZone = draft.timeZone?.trim();
+  if (timeZone && !isValidTimeZone(timeZone)) return null;
   if (
     !/^([01]?\d|2[0-3]):[0-5]\d$/.test(draft.timeOfDay) ||
     weekdays.length === 0 ||
@@ -178,6 +185,7 @@ export function scheduleFromDraft(draft: ScheduleDraft): ScheduledTaskUpsertSche
   return {
     type: "fixed_time",
     timeOfDay: draft.timeOfDay,
+    ...(timeZone ? { timeZone } : {}),
     ...(weekdays.length === 7 ? {} : { weekdays }),
   };
 }
@@ -211,6 +219,7 @@ function draftSignature(draft: ScheduledTaskDraft): string {
       .map((option) => [option.id, option.value]),
     draft.schedule.mode,
     draft.schedule.timeOfDay,
+    draft.schedule.timeZone ?? "",
     [...draft.schedule.weekdays].sort((a, b) => a - b),
     draft.schedule.intervalMinutes,
     draft.schedule.maxDeliveryAgeMinutes,
