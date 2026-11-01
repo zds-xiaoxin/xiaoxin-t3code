@@ -18,6 +18,8 @@ import { serverEnvironment } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { formatRelativeTimeLabel } from "../../timestampFormat";
 import { useNowMinute } from "../../hooks/useNowMinute";
+import { useDebouncedValue } from "../../state/queries";
+import { AnimatedHeight } from "../AnimatedHeight";
 import { Button } from "../ui/button";
 import { toastManager } from "../ui/toast";
 import { Input } from "../ui/input";
@@ -139,8 +141,8 @@ function RetentionControl({
             <NumberFieldDecrement aria-label={uiText("Decrease {0}", { "0": label })} />
             <NumberFieldInput
               aria-label={uiText("{0} in days", { "0": label })}
-              size={new Intl.NumberFormat().format(draft ?? value).length}
-              className="field-sizing-content w-auto min-w-[1ch] grow-0 text-right"
+              size={5}
+              className="w-auto grow-0 text-right"
             />
             <span aria-hidden="true" className="self-center pr-2 text-xs">
               {uiText("days")}
@@ -720,12 +722,31 @@ export function StorageCleanupSections() {
   const { scope, connectedEnvironments, targets } = useSettingsScope();
   const scopedSettings = useScopedSettings();
   const updateSettings = useUpdateScopedSettings();
-  if (scope.kind === "project" || scope.kind === "checkout") return null;
   const settings = scopedSettings.storageCleanup;
-  const ruleStatus = (key: "browserArtifactsAfterDays" | "logsAfterDays") =>
-    targets.some((target) => target.settings.storageCleanup[key] !== settings[key])
+  const targetIdsKey = environmentIdsKey(targets.map((target) => target.environmentId).sort());
+  const artifactsMixed =
+    targets.length > 1 &&
+    targets.some(
+      (target) =>
+        target.settings.storageCleanup.browserArtifactsAfterDays !==
+        settings.browserArtifactsAfterDays,
+    );
+  const logsMixed =
+    targets.length > 1 &&
+    targets.some(
+      (target) => target.settings.storageCleanup.logsAfterDays !== settings.logsAfterDays,
+    );
+  const settledArtifactsStatus = useDebouncedValue(`${targetIdsKey}:${artifactsMixed}`, 300);
+  const settledLogsStatus = useDebouncedValue(`${targetIdsKey}:${logsMixed}`, 300);
+  const artifactsStatus =
+    targets.length > 1 && settledArtifactsStatus === `${targetIdsKey}:true`
       ? "Mixed across selected machines"
       : undefined;
+  const logsStatus =
+    targets.length > 1 && settledLogsStatus === `${targetIdsKey}:true`
+      ? "Mixed across selected machines"
+      : undefined;
+  if (scope.kind === "project" || scope.kind === "checkout") return null;
   const update = (patch: Partial<StorageCleanupSettings>) =>
     updateSettings({ storageCleanup: patch });
   const databaseStorageNotice = (
@@ -754,36 +775,40 @@ export function StorageCleanupSections() {
     <>
       {databaseStorageNotice}
       <SettingsSection id="storage-artifacts" title={uiText("Artifacts and logs")}>
-        <SettingsRow
-          title={uiText("Delete old browser artifacts")}
-          status={ruleStatus("browserArtifactsAfterDays")}
-          description={uiText(
-            "Delete saved browser captures after this many days. Older capture links will no longer open.",
-          )}
-          serverScoped
-          control={
-            <RetentionControl
-              label={uiText("Delete old browser artifacts")}
-              value={settings.browserArtifactsAfterDays}
-              onChange={(browserArtifactsAfterDays) => update({ browserArtifactsAfterDays })}
-            />
-          }
-        />
-        <SettingsRow
-          title={uiText("Delete old rotated logs")}
-          status={ruleStatus("logsAfterDays")}
-          description={uiText(
-            "Delete inactive rotated log files after this many days. Current logs are kept.",
-          )}
-          serverScoped
-          control={
-            <RetentionControl
-              label={uiText("Delete old rotated logs")}
-              value={settings.logsAfterDays}
-              onChange={(logsAfterDays) => update({ logsAfterDays })}
-            />
-          }
-        />
+        <AnimatedHeight>
+          <SettingsRow
+            title={uiText("Delete old browser artifacts")}
+            status={artifactsStatus}
+            description={uiText(
+              "Delete saved browser captures after this many days. Older capture links will no longer open.",
+            )}
+            serverScoped
+            control={
+              <RetentionControl
+                label={uiText("Delete old browser artifacts")}
+                value={settings.browserArtifactsAfterDays}
+                onChange={(browserArtifactsAfterDays) => update({ browserArtifactsAfterDays })}
+              />
+            }
+          />
+        </AnimatedHeight>
+        <AnimatedHeight>
+          <SettingsRow
+            title={uiText("Delete old rotated logs")}
+            status={logsStatus}
+            description={uiText(
+              "Delete inactive rotated log files after this many days. Current logs are kept.",
+            )}
+            serverScoped
+            control={
+              <RetentionControl
+                label={uiText("Delete old rotated logs")}
+                value={settings.logsAfterDays}
+                onChange={(logsAfterDays) => update({ logsAfterDays })}
+              />
+            }
+          />
+        </AnimatedHeight>
       </SettingsSection>
       <CleanupSection />
     </>

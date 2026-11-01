@@ -34,7 +34,7 @@ import {
   type ThreadSearchSubject,
 } from "@t3tools/shared/paletteSearch";
 import { threadSearchPullRequests } from "@t3tools/shared/threadPullRequests";
-import { indexedMessageCondition } from "./messageSearchIndex.ts";
+import { indexedMessageCondition, nonPlaceholderMessageCondition } from "./messageSearchIndex.ts";
 import { loadOlderSettledThreadsPage } from "./ShellStream.ts";
 // When the user last wrote in the thread aliased `threads`, as the clients
 // rank recency; agent notices in the user role do not count.
@@ -144,7 +144,8 @@ export function buildSearchSnippet(text: string, matchStart: number): string {
   const cut = end < shown.length || rawEnd < text.length;
   return `${start > 0 ? "\u2026" : ""}${shown.slice(0, end)}${cut ? "\u2026" : ""}`;
 }
-// Hidden subagent threads must be filtered before the hit limit so visible matches aren't lost.
+
+// Filter hidden subagents and side chats before the hit limit so visible matches aren't lost.
 // Word starts and ranking follow the title rules in JS.
 // Without FTS5 trigrams, or for two-character CJK words, scan the same eligible messages.
 // The scan folds ASCII case only, so accent variants and non-ASCII case variants may not match.
@@ -164,6 +165,7 @@ export const messageHitsQuery = (
         AND threads.thread_id NOT IN (SELECT value FROM json_each(${excludedThreadIds}))
         AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
           IS NOT 'subagent'
+        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
     )
     ${
       match === null
@@ -199,11 +201,12 @@ export const messageHitsQuery = (
           INNER JOIN eligible ON eligible.thread_id = messages.thread_id
           WHERE orchestration_v2_message_search MATCH ${match}
             AND orchestration_v2_message_search.rowid >= coalesce((
-              SELECT rowid FROM orchestration_v2_message_search
+              SELECT orchestration_v2_message_search.rowid FROM orchestration_v2_message_search
               WHERE orchestration_v2_message_search MATCH ${match}
-              ORDER BY rowid DESC
+              ORDER BY orchestration_v2_message_search.rowid DESC
               LIMIT 1 OFFSET ${MESSAGE_CANDIDATE_LIMIT - 1}
             ), 0)
+            AND ${nonPlaceholderMessageCondition(sql)}
         `
     }
       -- Answers to an agent's question show inside its question card, where
@@ -322,6 +325,7 @@ export const make = Effect.gen(function* () {
         AND projects.deleted_at IS NULL
         AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
           IS NOT 'subagent'
+        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
         AND (${projectId} IS NULL OR threads.project_id = ${projectId})
     `,
   });
@@ -351,6 +355,7 @@ export const make = Effect.gen(function* () {
         AND projects.deleted_at IS NULL
         AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
           IS NOT 'subagent'
+        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
         AND json_extract(threads.payload_json, '$.settledOverride') = 'settled'
         AND json_extract(threads.payload_json, '$.settledAt') < ${before}
         AND (${projectIds} IS NULL
@@ -372,6 +377,7 @@ export const make = Effect.gen(function* () {
         AND json_extract(threads.payload_json, '$.archivedAt') IS NULL
         AND json_extract(threads.payload_json, '$.lineage.relationshipToParent')
           IS NOT 'subagent'
+        AND json_extract(threads.payload_json, '$.lineage.sideChat') IS NOT 1
         AND json_extract(threads.payload_json, '$.settledOverride') = 'settled'
         AND json_extract(threads.payload_json, '$.settledAt') < ${before}
         AND (${projectIds} IS NULL

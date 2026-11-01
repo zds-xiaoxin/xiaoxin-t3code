@@ -58,6 +58,8 @@ const project = (id: string): SidebarProjectSnapshot => ({
   createdAt: "2026-01-01",
   updatedAt: "2026-01-01",
   groupedProjectCount: 1,
+  pinned: false,
+  archived: false,
   environmentPresence: "local-only",
   allRemoteMembersAreDesktopLocal: false,
   allRemoteMembersAreWsl: false,
