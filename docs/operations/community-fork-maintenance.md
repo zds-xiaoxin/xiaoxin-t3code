@@ -12,4 +12,8 @@ Use immutable release tags and matching package manifests for each distribution.
 
 Source validation, a published package, a queued installer, an installed application, and user acceptance are separate states. Record the source commit, upstream tag, custom patch identity and package digest. A source update must not imply that the application has been installed or accepted.
 
+Finish an accepted upgrade by merging its validated source into `main` and checking that the installed build's application source matches `main`. Record the build commit and main commit separately when workflow or maintenance documentation changes follow the build; do not rewrite the installed build's provenance. An upgrade left only on its integration branch is not complete.
+
+Fork pull requests use standard GitHub-hosted Ubuntu and macOS runners; the official repository keeps its Blacksmith runners. Keep the same checks and final `Check` gate. Public repository use of standard hosted runners is free; recheck pricing before making the repository private or selecting larger runners.
+
 Install only after the storage guard passes and the candidate is verified. Wait for the existing task/input idle gates, take the protected cold backup, and verify the program, data, authentication and configuration after replacement. A program rollback never restores an old database over new conversations.
