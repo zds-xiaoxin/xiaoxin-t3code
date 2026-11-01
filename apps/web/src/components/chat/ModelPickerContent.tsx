@@ -847,7 +847,10 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
           isSearching
             ? { height: searchHeight }
             : {
-                minHeight: `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
+                // A minimum still lets longer lists grow the anchored popup.
+                // Docked layouts retain their responsive height from the parent.
+                [props.docked ? "minHeight" : "height"]:
+                  `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
               }
         }
         data-model-picker-content="true"

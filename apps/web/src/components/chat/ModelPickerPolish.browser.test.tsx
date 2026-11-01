@@ -67,6 +67,12 @@ function setup(
     ),
   };
 }
+// textContent includes the provider name intentionally reserved for screen readers.
+function visibleOptionText(option: Element) {
+  const visible = option.cloneNode(true) as Element;
+  for (const label of visible.querySelectorAll(".sr-only")) label.remove();
+  return visible.textContent;
+}
 const frame = () => document.querySelector<HTMLElement>("[data-model-picker-content]")!;
 
 it("keeps provider switches in one stable frame and marks the selected model", async () => {
@@ -74,7 +80,9 @@ it("keeps provider switches in one stable frame and marks the selected model", a
   await using screen = await render(test.element());
   await expect.element(screen.getByRole("option").first()).toBeVisible();
   const height = frame().getBoundingClientRect().height;
-  expect(screen.getByRole("option").first().element().textContent).not.toContain("OpenAI 工作账号");
+  expect(visibleOptionText(screen.getByRole("option").first().element())).not.toContain(
+    "OpenAI 工作账号",
+  );
   expect(
     screen.getByRole("option").first().element().querySelector(".lucide-check.invisible"),
   ).toBeNull();
@@ -107,7 +115,7 @@ it("labels duplicate favorite models while keeping a selected account concise", 
   const test = setup([provider("a", "账户甲", "codex", 1), provider("b", "账户乙", "codex", 1)]);
   await using screen = await render(test.element());
   await expect.element(screen.getByRole("option").first()).toBeVisible();
-  expect(screen.getByRole("option").first().element().textContent).not.toContain("账户甲");
+  expect(visibleOptionText(screen.getByRole("option").first().element())).not.toContain("账户甲");
   preferences.favorites = [
     { provider: test.entries[0]!.instanceId, model: "a-model-0" },
     { provider: test.entries[1]!.instanceId, model: "b-model-0" },
@@ -128,7 +136,7 @@ it("keeps distinct favorite models on one line without repeating their provider"
   await screen.getByRole("button", { name: /Favorites|收藏/, exact: true }).click();
   await expect.element(screen.getByRole("option").nth(1)).toBeVisible();
   for (const option of screen.getByRole("option").elements()) {
-    expect(option.textContent).not.toContain("Codex");
+    expect(visibleOptionText(option)).not.toContain("Codex");
   }
   await screen.getByRole("option").nth(1).click();
   expect(test.onSelect).toHaveBeenCalledWith(test.entries[0]!.instanceId, "codex-model-1");
@@ -144,8 +152,12 @@ it("omits account labels in mixed search when the model names are distinct", asy
   await using screen = await render(test.element());
   await screen.getByRole("combobox").fill("中文");
   await expect.element(screen.getByRole("option").nth(1)).toBeVisible();
-  expect(screen.getByRole("option").first().element().textContent).not.toContain("OpenAI 工作账号");
-  expect(screen.getByRole("option").nth(1).element().textContent).not.toContain("Claude 工作账号");
+  expect(visibleOptionText(screen.getByRole("option").first().element())).not.toContain(
+    "OpenAI 工作账号",
+  );
+  expect(visibleOptionText(screen.getByRole("option").nth(1).element())).not.toContain(
+    "Claude 工作账号",
+  );
 });
 
 it("fits a narrow viewport with larger interface type and keeps Chinese labels readable", async () => {
@@ -228,7 +240,7 @@ it("keeps the anchored popup stable with its footer and closes after a real mode
   await page.getByRole("button", { name: "Claude 工作账号", exact: true }).click();
   expect(Math.abs(popup.getBoundingClientRect().height - before.height)).toBeLessThan(1);
   expect(Math.abs(popup.getBoundingClientRect().y - before.y)).toBeLessThan(1);
-  await page.getByRole("option").first().click();
-  expect(test.onSelect).toHaveBeenCalledWith(test.entries[1]!.instanceId, "claude-model-0");
+  await page.getByRole("option", { name: /中文审阅模型 8/ }).click();
+  expect(test.onSelect).toHaveBeenCalledWith(test.entries[1]!.instanceId, "claude-model-7");
   await expect.element(page.getByRole("combobox")).not.toBeInTheDocument();
 });
