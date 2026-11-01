@@ -136,20 +136,20 @@ export function RunInspector({
     <section aria-label={uiText("Run")} className="space-y-4 p-4 text-xs">
       <TaskProgressSteps key={`${environmentId}:${threadId}`} progress={progress} />
       {tasks.length > 0 ? (
-      <div className="space-y-2">
-        <h3 className="font-medium">
-          {uiText("Subtasks")} ({tasks.length})
-        </h3>
-        {turnSubagents ? (
-          <p className="text-3xs text-muted-foreground">
-            {!turnSubagents.latestTurn ? `${uiText("Includes earlier turns")} · ` : ""}
-            {uiText("{running} active · {settled} ended", {
-              running: turnSubagents.liveCount,
-              settled: turnSubagents.settledCount,
-            })}
-          </p>
-        ) : null}
-        <ul className="space-y-2">
+        <div className="space-y-2">
+          <h3 className="font-medium">
+            {uiText("Subtasks")} ({tasks.length})
+          </h3>
+          {turnSubagents ? (
+            <p className="text-3xs text-muted-foreground">
+              {!turnSubagents.latestTurn ? `${uiText("Includes earlier turns")} · ` : ""}
+              {uiText("{running} active · {settled} ended", {
+                running: turnSubagents.liveCount,
+                settled: turnSubagents.settledCount,
+              })}
+            </p>
+          ) : null}
+          <ul className="space-y-2">
             {tasks.slice(0, visible).map((task) => (
               <Subtask
                 key={task.id}
@@ -159,12 +159,12 @@ export function RunInspector({
               />
             ))}
           </ul>
-        {tasks.length > visible ? (
-          <Button variant="ghost" size="sm" onClick={() => setVisible(visible + 30)}>
-            {uiText("Show more")}
-          </Button>
-        ) : null}
-      </div>
+          {tasks.length > visible ? (
+            <Button variant="ghost" size="sm" onClick={() => setVisible(visible + 30)}>
+              {uiText("Show more")}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
       <details className="group border-t border-border pt-3">
         <summary className="cursor-pointer rounded-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring">

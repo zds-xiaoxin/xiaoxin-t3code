@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 import { describe, expect, it, vi } from "vite-plus/test";
 // Route validation runs in Node; its page's browser-only diff worker is never instantiated.
-vi.mock("@pierre/diffs/worker/worker.js?worker", () => ({ default: class DiffsWorker {} }));
+vi.mock("@pierre/diffs/worker/worker.js?worker", () => ({ default: function DiffsWorker() {} }));
 
 import { Route as PullRequestsRoute } from "../../routes/_chat.pull-requests";
 

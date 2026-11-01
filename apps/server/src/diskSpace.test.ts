@@ -1,3 +1,4 @@
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, describe, it, vi } from "@effect/vitest";
 import * as DateTime from "effect/DateTime";
@@ -69,7 +70,7 @@ const layer = DiskSpace.layer.pipe(
 );
 
 describe("DiskSpace service", () => {
-  it.effect.skipIf(process.platform === "win32")(
+  it.effect.skipIf(HostProcess.Platform.defaultValue() === "win32")(
     "measures backups newest-first, flags the surplus, and records one history sample",
     () =>
       Effect.gen(function* () {
@@ -122,6 +123,5 @@ describe("DiskSpace service", () => {
         assert.equal(again.measuredAt, measured.measuredAt);
         assert.isFalse(again.measuring);
       }).pipe(Effect.scoped, Effect.provide(layer)),
-    30_000,
   );
 });

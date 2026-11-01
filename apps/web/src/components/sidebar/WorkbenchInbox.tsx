@@ -1,3 +1,4 @@
+import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useAtomValue } from "@effect/atom-react";
 import { primaryServerKeybindingsAtom } from "../../state/server";
 import { resolveShortcutCommand, shortcutLabelForCommand } from "../../keybindings";
@@ -41,6 +42,9 @@ import { Button } from "../ui/button";
 import { Dialog, DialogPopup, DialogTitle, DialogClose } from "../ui/dialog";
 import { SidebarMenu, SidebarMenuItem, SidebarMenuButton } from "../ui/sidebar";
 
+// Read the clock only from event handlers and the committed-navigation effect.
+const visitTimestamp = () => new Date().toISOString();
+
 export function WorkbenchInbox({
   threads,
   projects,
@@ -56,6 +60,7 @@ export function WorkbenchInbox({
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const nextShortcut = shortcutLabelForCommand(keybindings, "inbox.next");
   const [view, setView] = useState<"resume" | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe to the command that opens the recent-work dialog.
   useEffect(() => onOpenRecentWork(() => setView("resume")), []);
   const [expanded, setExpanded] = useState(() => {
     try {
@@ -76,8 +81,10 @@ export function WorkbenchInbox({
     !isReady ||
     environments.length === 0 ||
     environments.some((environment) => environment.connection.phase !== "connected");
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Persist the visit only after navigation commits to the active thread.
   useEffect(() => {
-    if (activeKey) setStorageError(!update("visits", activeKey, new Date().toISOString()));
+    // oxlint-disable-next-line react/set-state-in-effect -- Display a failed persistence write without recording visits during render.
+    if (activeKey) setStorageError(!update("visits", activeKey, visitTimestamp()));
   }, [activeKey, update]);
   const projectByThread = (() => {
     const result = new Map<string, SidebarProjectSnapshot>();
@@ -101,6 +108,7 @@ export function WorkbenchInbox({
       acknowledgedErrors[inboxThreadKey(thread)] !== thread.latestRun?.runId,
   );
   const attention = (() => sortedAttentionThreads(threads, acknowledgedErrors, localVisits))();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the inbox keyboard shortcut listener in sync with current actionable threads.
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || isCommandPaletteOpen() || isModelPickerOpen())
@@ -124,7 +132,7 @@ export function WorkbenchInbox({
   }, [attention, activeKey, keybindings, navigate]);
   const page = attentionPage(attention, showAll);
   const markSeen = async (thread: SidebarThreadSummary) => {
-    const visitedAt = new Date().toISOString();
+    const visitedAt = visitTimestamp();
     const result = await visitThread({
       environmentId: thread.environmentId,
       input: { threadId: thread.id, visitedAt },
@@ -179,7 +187,7 @@ export function WorkbenchInbox({
               aria-label={isSaved ? "取消留待继续" : "留待继续"}
               aria-pressed={isSaved}
               title={isSaved ? "取消留待继续" : "留待继续"}
-              onClick={() => change("saved", thread, isSaved ? null : new Date().toISOString())}
+              onClick={() => change("saved", thread, isSaved ? null : visitTimestamp())}
             >
               <BookmarkIcon />
             </Button>
@@ -229,11 +237,7 @@ export function WorkbenchInbox({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  change(
-                    "saved",
-                    current,
-                    saved[inboxThreadKey(current)] ? null : new Date().toISOString(),
-                  )
+                  change("saved", current, saved[inboxThreadKey(current)] ? null : visitTimestamp())
                 }
               >
                 {saved[inboxThreadKey(current)] ? "取消当前会话的留存" : "把当前会话留待继续"}
@@ -322,38 +326,43 @@ export function WorkbenchInbox({
                             className="group/inbox flex min-w-0 items-center gap-1 rounded-md p-1 hover:bg-accent/50 focus-within:bg-accent/50"
                           >
                             {reason ? <InboxStatusMark reason={reason} /> : null}
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
-                              onClick={() =>
-                                navigate(scopeThreadRef(thread.environmentId, thread.id))
-                              }
-                            >
-                              <span className="block truncate text-sm" title={label.title}>
-                                {label.title}
-                              </span>
-                              <span
-                                className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
-                                title={
-                                  label.detail ??
-                                  `${project?.displayName ?? "项目"} · ${provider} · ${reason}`
-                                }
-                              >
-                                {label.detail ? (
-                                  <span className="min-w-0 truncate">{label.detail}</span>
-                                ) : (
-                                  <>
-                                    <span className="min-w-0 shrink truncate">
-                                      {project?.displayName ?? "项目"}
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={
+                                  <button
+                                    type="button"
+                                    className="min-w-0 flex-1 text-left outline-hidden focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
+                                    onClick={() =>
+                                      navigate(scopeThreadRef(thread.environmentId, thread.id))
+                                    }
+                                  >
+                                    <span className="block truncate text-sm">{label.title}</span>
+                                    <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                                      {label.detail ? (
+                                        <span className="min-w-0 truncate">{label.detail}</span>
+                                      ) : (
+                                        <>
+                                          <span className="min-w-0 shrink truncate">
+                                            {project?.displayName ?? "项目"}
+                                          </span>
+                                          <span className="shrink-0">·</span>
+                                          <span className="shrink-0">{provider}</span>
+                                          <span className="shrink-0">·</span>
+                                          <span className="shrink-0">{reason}</span>
+                                        </>
+                                      )}
                                     </span>
-                                    <span className="shrink-0">·</span>
-                                    <span className="shrink-0">{provider}</span>
-                                    <span className="shrink-0">·</span>
-                                    <span className="shrink-0">{reason}</span>
-                                  </>
-                                )}
-                              </span>
-                            </button>
+                                  </button>
+                                }
+                              />
+                              <TooltipPopup>
+                                <p>{label.title}</p>
+                                <p>
+                                  {label.detail ??
+                                    `${project?.displayName ?? "项目"} · ${provider} · ${reason}`}
+                                </p>
+                              </TooltipPopup>
+                            </Tooltip>
                             <div className="shrink-0 text-xs">
                               <span className="text-muted-foreground group-hover/inbox:hidden group-focus-within/inbox:hidden">
                                 {sidebarRelativeTime(attentionTimestamp(thread))}
@@ -388,11 +397,7 @@ export function WorkbenchInbox({
                                   variant="ghost"
                                   aria-pressed={Boolean(saved[key])}
                                   onClick={() =>
-                                    change(
-                                      "saved",
-                                      thread,
-                                      saved[key] ? null : new Date().toISOString(),
-                                    )
+                                    change("saved", thread, saved[key] ? null : visitTimestamp())
                                   }
                                 >
                                   {saved[key] ? "取消稍后" : "稍后"}

@@ -18,13 +18,7 @@ const working = new Set(["preparing", "starting", "running", "waiting"]);
 
 const awaitingUserTypes = new Set(["approval_request", "user_input_request", "secret_request"]);
 
-/**
- * Follows the run that owns live work. With none, the newest run is shown frozen only if it
- * has finished and nothing is queued behind it (a paused queue after Stop, a failed call or
- * a usage limit must not look like a ticking "排队中"). Completed readings remain available
- * in on-demand details. Never divide the context-window counter by elapsed time: it is a
- * last-response snapshot.
- */
+/** Follow active provider work; keep a completed reading frozen without treating context size as generated tokens. */
 export function selectTurnThroughput(projection: ThreadStructure) {
   const newest = (runs: typeof projection.runs) =>
     runs.reduce<(typeof projection.runs)[number] | undefined>(

@@ -7,6 +7,7 @@ import {
   type DiskSpaceKind,
   type DiskSpaceReport,
 } from "@t3tools/contracts";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -89,6 +90,7 @@ export class DiskSpace extends Context.Service<
 
 const make = Effect.gen(function* () {
   const config = yield* ServerConfig.ServerConfig;
+  const platform = yield* HostProcess.Platform;
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
   const scope = yield* Scope.Scope;
@@ -110,7 +112,7 @@ const make = Effect.gen(function* () {
   // Allocated size, like `df` sees it. Hard links are counted once and APFS clones in full, so the
   // numbers are an upper bound, which is the safe side for a "what is filling my disk" view.
   const allocatedBytes = (target: string): Effect.Effect<number | null> =>
-    process.platform === "win32"
+    platform === "win32"
       ? Effect.succeed(null)
       : runner
           .run({

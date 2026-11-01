@@ -1,6 +1,5 @@
-import { act } from "react";
-import { create, type ReactTestRenderer } from "react-test-renderer";
-import { afterEach, expect, it, vi } from "vite-plus/test";
+import { expect, it, vi } from "vite-plus/test";
+import { act, fakeTimers, render } from "../../../test/render";
 import * as DateTime from "effect/DateTime";
 import type { OrchestrationV2ThreadProjection } from "@t3tools/contracts";
 import { TurnThroughput } from "./TurnThroughputStatus";
@@ -36,52 +35,40 @@ function fixture() {
     turnItems: [],
   } as unknown as OrchestrationV2ThreadProjection;
 }
-afterEach(() => {
-  vi.useRealTimers();
-  vi.unstubAllGlobals();
-});
 it("updates locally, suspends while hidden/disconnected and tears down its clock", async () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(10000);
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  const page = Object.assign(new EventTarget(), { visibilityState: "visible" });
-  vi.stubGlobal("document", page);
-  let view!: ReactTestRenderer;
+  using visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
   const p = fixture();
-  await act(async () => {
-    view = create(<TurnThroughput projection={p} />);
+  await using screen = await render(<TurnThroughput projection={p} disconnected />, {
+    router: false,
   });
-  const text = () => JSON.stringify(view.toJSON());
+  using _timers = fakeTimers();
+  vi.setSystemTime(10000);
+  await screen.rerender(<TurnThroughput projection={p} />);
+  const text = () => screen.container.textContent;
   expect(text()).toContain("10.0 tok/s");
-  await act(async () => {
+  await act(() => {
     vi.advanceTimersByTime(10000);
   });
   expect(text()).toContain("5.0 tok/s");
-  await act(async () => {
-    page.visibilityState = "hidden";
-    page.dispatchEvent(new Event("visibilitychange"));
+  await act(() => {
+    visibility.mockReturnValue("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(vi.getTimerCount()).toBe(0);
-  await act(async () => {
-    page.visibilityState = "visible";
-    page.dispatchEvent(new Event("visibilitychange"));
+  await act(() => {
+    visibility.mockReturnValue("visible");
+    document.dispatchEvent(new Event("visibilitychange"));
   });
   expect(vi.getTimerCount()).toBe(1);
-  await act(async () => {
-    view.update(<TurnThroughput projection={p} disconnected />);
-  });
+  await screen.rerender(<TurnThroughput projection={p} disconnected />);
   expect(text()).not.toContain("— tok/s");
   expect(text()).toContain("用量数据已过期");
   expect(text()).toContain("连接断开");
   expect(vi.getTimerCount()).toBe(0);
-  await act(async () => view.unmount());
+  await screen.unmount();
   expect(vi.getTimerCount()).toBe(0);
 });
 it("retains a finished round without a collapse timer so details stay available", async () => {
-  vi.useFakeTimers();
-  vi.setSystemTime(20000);
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  vi.stubGlobal("document", Object.assign(new EventTarget(), { visibilityState: "visible" }));
   const at = (n: number) => DateTime.makeUnsafe(n);
   const p = fixture();
   const done = {
@@ -94,24 +81,19 @@ it("retains a finished round without a collapse timer so details stay available"
       turnTokenUsage: { usageStatus: "complete" as const, outputTokens: 100 },
     })),
   } as unknown as OrchestrationV2ThreadProjection;
-  let view!: ReactTestRenderer;
-  await act(async () => {
-    view = create(<TurnThroughput projection={done} />);
-  });
-  expect(JSON.stringify(view.toJSON())).toContain("10.0 tok/s");
-  expect(JSON.stringify(view.toJSON())).not.toContain("无新活动");
-  await act(async () => {
+  await using screen = await render(<TurnThroughput projection={done} />, { router: false });
+  using _timers = fakeTimers();
+  vi.setSystemTime(20000);
+  expect(screen.container.textContent).toContain("10.0 tok/s");
+  expect(screen.container.textContent).not.toContain("无新活动");
+  await act(() => {
     vi.advanceTimersByTime(2 * 60 * 1000);
   });
-  expect(JSON.stringify(view.toJSON())).toContain("10.0 tok/s");
+  expect(screen.container.textContent).toContain("10.0 tok/s");
   expect(vi.getTimerCount()).toBe(0);
-  await act(async () => view.unmount());
-  // Opening an older thread keeps its last completed reading without starting a timer.
+  await screen.unmount();
   vi.setSystemTime(10_000_000);
-  await act(async () => {
-    view = create(<TurnThroughput projection={done} />);
-  });
-  expect(JSON.stringify(view.toJSON())).toContain("10.0 tok/s");
+  await using reopened = await render(<TurnThroughput projection={done} />, { router: false });
+  expect(reopened.container.textContent).toContain("10.0 tok/s");
   expect(vi.getTimerCount()).toBe(0);
-  await act(async () => view.unmount());
 });

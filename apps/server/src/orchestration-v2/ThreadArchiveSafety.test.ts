@@ -24,6 +24,8 @@ import * as ProviderAdapterRegistry from "./ProviderAdapterRegistry.ts";
 import * as ProviderReplayHarness from "./testkit/ProviderReplayHarness.ts";
 import type * as ProviderAdapter from "@t3tools/provider-core/server/ProviderAdapter";
 
+const isArchiveBlocked = Schema.is(Orchestrator.OrchestratorArchiveBlockedError);
+
 const instanceId = ProviderInstanceId.make("codex");
 const adapter = {
   instanceId,
@@ -73,7 +75,7 @@ const reject = (id: string, reason: Orchestrator.OrchestratorArchiveBlockedError
       }),
     );
     assert.ok(Result.isFailure(result));
-    assert.ok(Schema.is(Orchestrator.OrchestratorArchiveBlockedError)(result.failure));
+    assert.ok(isArchiveBlocked(result.failure));
     assert.equal(result.failure.reason, reason);
     assert.isNull((yield* projections.getThread(root)).archivedAt);
   });

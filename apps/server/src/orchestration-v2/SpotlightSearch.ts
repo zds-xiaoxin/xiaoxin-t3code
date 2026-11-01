@@ -1,4 +1,4 @@
-import { Worker } from "node:worker_threads";
+import * as NodeWorkerThreads from "node:worker_threads";
 import * as Path from "effect/Path";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -19,12 +19,14 @@ export class SpotlightSearch extends Context.Service<
     ) => Effect.Effect<OrchestrationSearchThreadsResult, SpotlightSearchError>;
   }
 >()("t3/orchestration-v2/SpotlightSearch") {}
+const isSpotlightSearchError = Schema.is(SpotlightSearchError);
+const decodeSearchResult = Schema.decodeUnknownEffect(OrchestrationSearchThreadsResult);
 export const layer = Layer.effect(
   SpotlightSearch,
   Effect.gen(function* () {
     const config = yield* ServerConfig.ServerConfig;
     const path = yield* Path.Path;
-    let worker: Worker | undefined;
+    let worker: NodeWorkerThreads.Worker | undefined;
     let serial = 0;
     const pending = new Map<
       number,
@@ -49,7 +51,7 @@ export const layer = Layer.effect(
             new Promise<unknown>((resolve, reject) => {
               if (!worker) {
                 const development = import.meta.url.endsWith(".ts");
-                worker = new Worker(
+                worker = new NodeWorkerThreads.Worker(
                   new URL(
                     development ? "../spotlight-search-worker.ts" : "./spotlight-search-worker.mjs",
                     import.meta.url,
@@ -88,11 +90,9 @@ export const layer = Layer.effect(
               worker.postMessage({ id, query, limit });
             }),
           catch: (e) =>
-            Schema.is(SpotlightSearchError)(e)
-              ? e
-              : new SpotlightSearchError({ message: "本地搜索失败" }),
+            isSpotlightSearchError(e) ? e : new SpotlightSearchError({ message: "本地搜索失败" }),
         });
-        return yield* Schema.decodeUnknownEffect(OrchestrationSearchThreadsResult)(raw).pipe(
+        return yield* decodeSearchResult(raw).pipe(
           Effect.mapError(() => new SpotlightSearchError({ message: "Invalid search response" })),
         );
       }),

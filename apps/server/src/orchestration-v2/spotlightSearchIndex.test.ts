@@ -1,14 +1,14 @@
 // @effect-diagnostics nodeBuiltinImport:off - real synchronous worker index fixtures.
 import { expect, it } from "vite-plus/test";
-import { DatabaseSync } from "node:sqlite";
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import * as NodeSqlite from "node:sqlite";
+import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
 import { SpotlightIndex } from "./spotlightSearchIndex.ts";
 function fixture() {
-  const dir = mkdtempSync(join(tmpdir(), "spotlight-test-")),
-    file = join(dir, "source.sqlite");
-  const db = new DatabaseSync(file);
+  const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "spotlight-test-")),
+    file = NodePath.join(dir, "source.sqlite");
+  const db = new NodeSqlite.DatabaseSync(file);
   db.exec(`CREATE TABLE projection_projects(project_id TEXT PRIMARY KEY,title TEXT,deleted_at TEXT);
  CREATE TABLE orchestration_v2_projection_threads(thread_id TEXT PRIMARY KEY,project_id TEXT,title TEXT,updated_at TEXT,archived_at TEXT,deleted_at TEXT,payload_json TEXT);
  CREATE TABLE orchestration_v2_projection_messages(message_id TEXT PRIMARY KEY,thread_id TEXT,role TEXT,streaming INTEGER,created_at TEXT,updated_at TEXT,payload_json TEXT);
@@ -46,7 +46,7 @@ function fixture() {
         "2026-10-26T00:00:00Z",
         JSON.stringify({ text }),
       );
-  const index = new SpotlightIndex(file, join(dir, "index.sqlite"));
+  const index = new SpotlightIndex(file, NodePath.join(dir, "index.sqlite"));
   return {
     thread,
     message,
@@ -56,7 +56,7 @@ function fixture() {
     [Symbol.dispose]() {
       index.close();
       db.close();
-      rmSync(dir, { recursive: true, force: true });
+      NodeFS.rmSync(dir, { recursive: true, force: true });
     },
   };
 }
@@ -104,9 +104,9 @@ it("refreshes edits and deletes without writing to the source", () => {
   using f = fixture();
   f.thread("t", "创作");
   f.message("t", "甲乙版本");
-  const before = readFileSync(f.file);
+  const before = NodeFS.readFileSync(f.file);
   expect(f.index.search("甲乙")).toHaveLength(1);
-  expect(readFileSync(f.file)).toEqual(before);
+  expect(NodeFS.readFileSync(f.file)).toEqual(before);
   f.db
     .prepare("UPDATE orchestration_v2_projection_messages SET payload_json=?,updated_at=?")
     .run(JSON.stringify({ text: "丙丁版本" }), "2026-10-27T00:00:00Z");
@@ -152,12 +152,12 @@ it("uses only exact user-confirmed aliases and tolerates invalid optional alias 
   using f = fixture();
   f.thread("work", "《杆子》制作");
   f.message("work", "杆子视频交付");
-  const aliases = join(f.file, "..", "aliases.json");
-  writeFileSync(aliases, JSON.stringify([{ from: "一一杆儿", to: "杆子" }]));
+  const aliases = NodePath.join(f.file, "..", "aliases.json");
+  NodeFS.writeFileSync(aliases, JSON.stringify([{ from: "一一杆儿", to: "杆子" }]));
   const index = new SpotlightIndex(f.file, ":memory:", aliases);
   try {
     expect(index.search("一一杆儿")[0]?.threadId).toBe("work");
-    writeFileSync(aliases, "invalid json");
+    NodeFS.writeFileSync(aliases, "invalid json");
     expect(index.search("杆子")[0]?.threadId).toBe("work");
   } finally {
     index.close();

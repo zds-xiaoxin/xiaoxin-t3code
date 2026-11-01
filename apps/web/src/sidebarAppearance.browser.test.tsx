@@ -47,8 +47,10 @@ function Probe() {
         <span data-testid="title" className="text-sm text-sidebar-foreground">
           标题
         </span>
-        <span data-testid="small" className="text-3xs text-sidebar-muted-foreground">小字</span>
-      <span data-testid="secondary" className="text-xs text-sidebar-muted-foreground">
+        <span data-testid="small" className="text-3xs text-sidebar-muted-foreground">
+          小字
+        </span>
+        <span data-testid="secondary" className="text-xs text-sidebar-muted-foreground">
           次要文字
         </span>
         <span data-testid="faded" className="text-xs text-sidebar-muted-foreground/55">

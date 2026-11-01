@@ -1,4 +1,5 @@
 // @effect-diagnostics nodeBuiltinImport:off
+import * as HostProcess from "./HostProcess.ts";
 import * as NodeFS from "node:fs";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
@@ -10,7 +11,7 @@ import * as FileSystem from "effect/FileSystem";
 
 import { RotatingFileSink, makeAsyncRotatingFileSink } from "./logging.ts";
 
-const windowsHost = process.platform === "win32";
+const windowsHost = HostProcess.Platform.defaultValue() === "win32";
 const tempDirectories: string[] = [];
 
 const makeTempDirectory = (): string => {

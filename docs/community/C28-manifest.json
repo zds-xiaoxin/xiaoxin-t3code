@@ -21,11 +21,7 @@
   "checks": {
     "focusedTestsPassed": 33,
     "installerTestsPassed": 48,
-    "coreTypecheck": [
-      "web",
-      "server",
-      "contracts"
-    ],
+    "coreTypecheck": ["web", "server", "contracts"],
     "aggregateCheckChanged": "not green; details in bilingual C28 release notes",
     "aggregateTests": {
       "passed": 99,

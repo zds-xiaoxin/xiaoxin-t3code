@@ -35,11 +35,13 @@ describe("Sidebar navigation modules and store integration", () => {
   it("sanitizes same-version persisted identities without replacing store actions", () => {
     const current = useStickyProjectsStore.getState();
     const merge = useStickyProjectsStore.persist.getOptions().merge!;
-    const valid = {environmentId: "env", projectId: "project"};
-    const restored = merge({identities: [null, {}, valid, valid, {environmentId: 42, projectId: "bad"}]}, current);
+    const valid = { environmentId: "env", projectId: "project" };
+    const restored = merge(
+      { identities: [null, {}, valid, valid, { environmentId: 42, projectId: "bad" }] },
+      current,
+    );
     expect(restored.identities).toEqual([valid]);
     expect(restored.addStickyProject).toBe(current.addStickyProject);
-    expect(merge({identities: "bad"}, current).identities).toEqual([]);
+    expect(merge({ identities: "bad" }, current).identities).toEqual([]);
   });
-
 });

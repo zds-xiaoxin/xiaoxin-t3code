@@ -43,33 +43,35 @@ export function ArchiveOriginalThreadButton({
     setBusy(true);
     setError(null);
     const claim = ThreadUndo.begin("archive", scopedThreadKey(target));
-    try {
-      const result = await archive({ environmentId, input: { threadId, requireIdle: true } });
-      if (result._tag !== "Success") {
+    await (async () => {
+      try {
+        const result = await archive({ environmentId, input: { threadId, requireIdle: true } });
+        if (result._tag !== "Success") {
+          claim.finish();
+          const failure = squashAtomCommandFailure(result);
+          setError(failure instanceof Error ? failure.message : "归档失败，请重试。");
+          return;
+        }
+        refreshArchivedThreadsForEnvironment(environmentId);
+        showThreadUndoNotice({
+          action: "Archived",
+          claim,
+          failureTitle: "撤销归档失败",
+          undo: async () => {
+            ThreadUndo.invalidate("archive", scopedThreadKey(target));
+            const result = await unarchive({ environmentId, input: { threadId } });
+            if (result._tag === "Success") refreshArchivedThreadsForEnvironment(environmentId);
+            return result;
+          },
+        });
+      } catch {
         claim.finish();
-        const failure = squashAtomCommandFailure(result);
-        setError(failure instanceof Error ? failure.message : "归档失败，请重试。");
-        return;
+        setError("归档结果暂未确认，请恢复连接后核对归档状态。");
       }
-      refreshArchivedThreadsForEnvironment(environmentId);
-      showThreadUndoNotice({
-        action: "Archived",
-        claim,
-        failureTitle: "撤销归档失败",
-        undo: async () => {
-          ThreadUndo.invalidate("archive", scopedThreadKey(target));
-          const result = await unarchive({ environmentId, input: { threadId } });
-          if (result._tag === "Success") refreshArchivedThreadsForEnvironment(environmentId);
-          return result;
-        },
-      });
-    } catch {
-      claim.finish();
-      setError("归档结果暂未确认，请恢复连接后核对归档状态。");
-    } finally {
+    })().finally(() => {
       inFlight.current = false;
       setBusy(false);
-    }
+    });
   };
   return (
     <div>
@@ -89,15 +91,17 @@ export function ArchiveOriginalThreadButton({
       {error ? (
         <div role="alert" className="text-xs">
           <p>{error}</p>
-          {error.includes("绑定了已启用的定时任务") ? <Button
-            size="xs"
-            variant="ghost"
-            onClick={() => {
-              void navigate({ to: "/settings/scheduled-tasks", search: { environmentId } });
-            }}
-          >
-            管理定时任务
-          </Button> : null}
+          {error.includes("绑定了已启用的定时任务") ? (
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => {
+                void navigate({ to: "/settings/scheduled-tasks", search: { environmentId } });
+              }}
+            >
+              管理定时任务
+            </Button>
+          ) : null}
         </div>
       ) : null}
     </div>

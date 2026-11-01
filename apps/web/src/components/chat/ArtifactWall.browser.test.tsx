@@ -154,11 +154,31 @@ describe("ArtifactWall revision drafts", () => {
     await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toHaveValue("51");
     await screen.getByRole("button", { name: "A 全图", exact: true }).click();
     await expect.element(screen.getByRole("slider")).not.toBeInTheDocument();
-    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="previous.png"]')!).toBeVisible();
-    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!).not.toBeVisible();
+    await expect
+      .element(
+        document.querySelector<HTMLImageElement>(
+          '[data-artifact-compare] img[alt="previous.png"]',
+        )!,
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!,
+      )
+      .not.toBeVisible();
     await screen.getByRole("button", { name: "B 全图", exact: true }).click();
-    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!).toBeVisible();
-    await expect.element(document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="previous.png"]')!).not.toBeVisible();
+    await expect
+      .element(
+        document.querySelector<HTMLImageElement>('[data-artifact-compare] img[alt="cover.png"]')!,
+      )
+      .toBeVisible();
+    await expect
+      .element(
+        document.querySelector<HTMLImageElement>(
+          '[data-artifact-compare] img[alt="previous.png"]',
+        )!,
+      )
+      .not.toBeVisible();
     await screen.getByRole("button", { name: "滑动对比", exact: true }).click();
     await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toHaveValue("51");
     await screen.getByRole("button", { name: "单图查看" }).click();

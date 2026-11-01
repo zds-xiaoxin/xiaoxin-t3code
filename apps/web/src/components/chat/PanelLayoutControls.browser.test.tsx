@@ -1,12 +1,22 @@
-import { act } from "react";
-import { create, type ReactTestRenderer } from "react-test-renderer";
+import { render } from "../../../test/render";
 import { expect, it, vi } from "vite-plus/test";
 const state = vi.hoisted(() => ({ mobile: true }));
 vi.mock("../../hooks/useMediaQuery", () => ({ useIsMobile: () => state.mobile }));
-vi.mock("../ui/toggle", () => ({ Toggle: (props: object) => <button {...props} /> }));
+vi.mock("../ui/toggle", () => ({
+  Toggle: ({
+    onPressedChange,
+    pressed,
+    ...props
+  }: {
+    onPressedChange?: (value: boolean) => void;
+    pressed?: boolean;
+  }) => <button {...props} onClick={() => onPressedChange?.(!pressed)} />,
+}));
 vi.mock("../ui/tooltip", () => ({
   Tooltip: (props: { children: React.ReactNode }) => <>{props.children}</>,
-  TooltipTrigger: (props: { render: React.ReactNode }) => <>{props.render}</>,
+  TooltipTrigger: (props: { render?: React.ReactNode; children?: React.ReactNode }) => (
+    <>{props.children ?? props.render}</>
+  ),
   TooltipPopup: (props: object) => <span {...props} />,
 }));
 vi.mock("../ui/popover", () => ({
@@ -17,7 +27,7 @@ vi.mock("../ui/popover", () => ({
 }));
 import { PanelLayoutControls } from "./PanelLayoutControls";
 it("uses an explicit mobile sheet toggle and preserves the desktop popover trigger", async () => {
-  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  state.mobile = true;
   const toggle = vi.fn();
   const props = {
     terminalAvailable: false,
@@ -34,24 +44,13 @@ it("uses an explicit mobile sheet toggle and preserves the desktop popover trigg
     onToggleThreadPanel: toggle,
     onToggleRightPanel: vi.fn(),
   };
-  let view!: ReactTestRenderer;
-  await act(async () => {
-    view = create(<PanelLayoutControls {...props} />);
-  });
-  expect(view.root.findAllByType("section")).toHaveLength(0);
-  const button = view.root
-    .findAllByType("button")
-    .find((b) => b.props["aria-label"] === "Toggle thread details panel")!;
-  await act(async () => button.props.onPressedChange(true));
+  await using screen = await render(<PanelLayoutControls {...props} />, { router: false });
+  expect(screen.container.querySelectorAll("section")).toHaveLength(0);
+  await screen.getByRole("button", { name: "Toggle thread details panel" }).click();
   expect(toggle).toHaveBeenCalledOnce();
   state.mobile = false;
-  await act(async () => view.update(<PanelLayoutControls {...props} threadPanelOpen />));
-  expect(view.root.findAllByType("section")).toHaveLength(1);
-  expect(
-    view.root
-      .findAllByType("button")
-      .find((b) => b.props["aria-label"] === "Toggle thread details panel")!.props.onPressedChange,
-  ).toBeUndefined();
-  await act(async () => view.unmount());
-  vi.unstubAllGlobals();
+  await screen.rerender(<PanelLayoutControls {...props} threadPanelOpen />);
+  expect(screen.container.querySelectorAll("section")).toHaveLength(1);
+  await screen.getByRole("button", { name: "Toggle thread details panel" }).click();
+  expect(toggle).toHaveBeenCalledOnce();
 });

@@ -56,7 +56,9 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
     <Toggle
       className={"relative shrink-0 [-webkit-app-region:no-drag]"}
       pressed={threadPanelOpen}
-      onPressedChange={threadPanelPresentation === "popover" ? undefined : onToggleThreadPanel}
+      onPressedChange={
+        !mobile && threadPanelPresentation === "popover" ? undefined : onToggleThreadPanel
+      }
       aria-label={uiText("Toggle thread details panel")}
       variant="ghost"
       size="sm"
@@ -67,7 +69,7 @@ export const PanelLayoutControls = memo(function PanelLayoutControls({
   const threadPanelControl = (
     <Tooltip>
       <TooltipTrigger render={<span className="flex shrink-0" />}>
-        {threadPanelPresentation === "popover" ? (
+        {!mobile && threadPanelPresentation === "popover" ? (
           <PopoverTrigger handle={threadPanelPopoverHandle} render={threadPanelToggle} />
         ) : (
           threadPanelToggle

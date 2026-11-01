@@ -1,4 +1,4 @@
-import { expect, it, onTestFinished } from "vite-plus/test";
+import { expect, it, onTestFinished, vi } from "vite-plus/test";
 import { render } from "../../../test/render";
 import { EnvironmentId, ProjectId, ProviderInstanceId } from "@t3tools/contracts";
 import { WorkPresetPicker } from "./WorkPresetPicker";
@@ -19,7 +19,8 @@ const selection = {
   options: [{ id: "reasoningEffort", value: "high" }],
 };
 
-it("selecting a preset only initializes the next new task", async () => {
+it("retains the retired preset selection without changing new or existing task models", async () => {
+  using _now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-01T12:00:00Z"));
   localStorage.removeItem(WORKBENCH_KEY);
   const original = useComposerDraftStore.getState();
   onTestFinished(() => {
@@ -42,7 +43,7 @@ it("selecting a preset only initializes the next new task", async () => {
       environmentId,
       "review",
       { name: "三方审查", selection },
-      Date.now(),
+      Date.parse("2026-10-01T12:00:00Z"),
       "create",
     ),
   );
@@ -54,14 +55,16 @@ it("selecting a preset only initializes the next new task", async () => {
   expect(store.getComposerDraft(oldDraft)?.activeProvider).toBeNull();
   const next = DraftId.make("next");
   store.setProjectDraftThreadId(project, next);
-  expect(store.getComposerDraft(next)?.modelSelectionByProvider[selection.instanceId]).toEqual(
-    selection,
-  );
+  expect(
+    store.getComposerDraft(next)?.modelSelectionByProvider[selection.instanceId],
+  ).toBeUndefined();
+  expect(readWorkbench().scopes[environmentId]?.presets.review?.selection).toEqual(selection);
   expect(screen.container.textContent).not.toContain("Review participants (manual)");
   expect(store.getComposerDraft(oldDraft)?.prompt).toBe("existing work");
 });
 
 it("creates, renames, updates, deletes and restores only a preset through the UI", async () => {
+  using _now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-01T12:00:00Z"));
   localStorage.removeItem(WORKBENCH_KEY);
   onTestFinished(() => localStorage.removeItem(WORKBENCH_KEY));
   await using screen = await render(
@@ -101,6 +104,7 @@ it("creates, renames, updates, deletes and restores only a preset through the UI
 });
 
 it("refuses an undo after another browser tab changes that same preset", async () => {
+  using _now = vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-01T12:00:00Z"));
   localStorage.removeItem(WORKBENCH_KEY);
   onTestFinished(() => localStorage.removeItem(WORKBENCH_KEY));
   writeWorkbench(() =>
@@ -109,7 +113,7 @@ it("refuses an undo after another browser tab changes that same preset", async (
       environmentId,
       "owned",
       { name: "Original", selection },
-      Date.now(),
+      Date.parse("2026-10-01T12:00:00Z"),
       "create",
     ),
   );

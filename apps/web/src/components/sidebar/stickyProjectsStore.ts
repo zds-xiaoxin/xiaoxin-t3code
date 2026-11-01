@@ -14,7 +14,11 @@ export interface StickyProjectsStoreState {
   readonly addStickyProject: (identity: StickyProjectIdentity) => void;
   readonly removeStickyProject: (identity: StickyProjectIdentity) => void;
   readonly toggleStickyProject: (identity: StickyProjectIdentity) => void;
-  readonly moveGroup: (groupKeys: ReadonlyArray<string>, key: string, direction: "up" | "down") => void;
+  readonly moveGroup: (
+    groupKeys: ReadonlyArray<string>,
+    key: string,
+    direction: "up" | "down",
+  ) => void;
   readonly moveStickyProject: (index: number, direction: "up" | "down") => void;
 }
 
@@ -57,7 +61,9 @@ export const useStickyProjectsStore = create<StickyProjectsStoreState>()(
         }));
       },
       moveGroup: (groupKeys, key, direction) => {
-        set((state) => ({ identities: moveStickyProjectGroup(state.identities, groupKeys, key, direction) }));
+        set((state) => ({
+          identities: moveStickyProjectGroup(state.identities, groupKeys, key, direction),
+        }));
       },
       moveStickyProject: (index, direction) => {
         set((state) => ({
@@ -79,9 +85,18 @@ export const useStickyProjectsStore = create<StickyProjectsStoreState>()(
       }),
       version: 1,
       merge: (persisted, current) => {
-        const raw = persisted && typeof persisted === "object" ? (persisted as { identities?: unknown }).identities : null;
+        const raw =
+          persisted && typeof persisted === "object"
+            ? (persisted as { identities?: unknown }).identities
+            : null;
         const identities = Array.isArray(raw) ? raw.filter(isValidIdentity) : [];
-        return { ...current, identities: identities.reduce<ReadonlyArray<StickyProjectIdentity>>((list, item) => addStickyProjectIdentity(list, item), []) };
+        return {
+          ...current,
+          identities: identities.reduce<ReadonlyArray<StickyProjectIdentity>>(
+            (list, item) => addStickyProjectIdentity(list, item),
+            [],
+          ),
+        };
       },
       migrate: (persistedState: unknown) => {
         if (!persistedState || typeof persistedState !== "object") {

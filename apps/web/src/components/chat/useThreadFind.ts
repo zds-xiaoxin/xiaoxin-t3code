@@ -53,6 +53,7 @@ export function useThreadFind({
         start: { entryId: target.messageId, occurrence: 0 },
       });
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe the current thread to Spotlight navigation events until it changes.
   useEffect(() => {
     if (!enabled || !threadKey) return;
     openSpotlightMatch();

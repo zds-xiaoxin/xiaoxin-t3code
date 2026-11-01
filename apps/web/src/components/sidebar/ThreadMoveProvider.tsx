@@ -68,6 +68,7 @@ export function ThreadMoveProvider({
       ]),
     );
   })();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Reveal and expand the sidebar destination requested by a completed thread move.
   useEffect(() => {
     if (!pendingReveal || revealed.current === pendingReveal) return;
     const group = groups.find((candidate) =>
@@ -92,7 +93,8 @@ export function ThreadMoveProvider({
           element.getClientRects().length > 0,
       );
       if (!row) {
-        if (++attempts < 10) timer = window.setTimeout(locate, 100);
+        attempts += 1;
+        if (attempts < 10) timer = window.setTimeout(locate, 100);
         return;
       }
       revealed.current = pendingReveal;

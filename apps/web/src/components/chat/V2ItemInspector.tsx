@@ -1,11 +1,6 @@
 import type { ToolCallDiffTarget } from "../../diffPanelStore";
 import { uiText } from "~/i18n";
-import type {
-  EnvironmentId,
-  OrchestrationV2ProjectedTurnItem,
-  RunId,
-  ThreadId,
-} from "@t3tools/contracts";
+import type { EnvironmentId, OrchestrationV2ProjectedTurnItem } from "@t3tools/contracts";
 import {
   toolCallLines,
   turnItemDetailRevision,

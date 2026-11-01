@@ -149,12 +149,6 @@ export function ImageChipButton({
   disabled?: boolean | undefined;
   onPreviewError?: (() => void) | undefined;
 }) {
-  const [sample, setSample] = useState<{
-    url: string;
-    color: string | undefined;
-  }>();
-  const [corsFailedUrl, setCorsFailedUrl] = useState<string>();
-  const accent = sample?.url === previewUrl ? sample?.color : undefined;
   return (
     <ContextChip
       kind="image"

@@ -4,7 +4,6 @@
 
 Cumulative C25 update on upstream 0.1.5: compact composer/context, image comparison refinements, corrected cost metrics and actionable volume-aware storage. See [C28](C28.en.md) for features, screenshots, installation and outstanding checks.
 
-
 ## C25 · 2026-10-29
 
 - Fix repeated artifact-count state updates that could create a renderer update loop.
@@ -14,7 +13,6 @@ Cumulative C25 update on upstream 0.1.5: compact composer/context, image compari
 - Include context-handoff/UI baseline cleanup and retain the C23 features and complete official 0.1.3 baseline.
 
 C25 is a community build number, not a new official version. Revision checks remain model-executed, without filesystem locks; feedback drafts do not survive a reload. The Electron revision interaction has not been re-accepted click by click; the real-model revision check was performed on web.
-
 
 ## C23 · 2026-10-28
 
