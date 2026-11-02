@@ -313,31 +313,33 @@ describe.each([
   });
 });
 describe("useNewThreadHandler", () => {
-  it.each([false, true])(
-    "keeps a concurrently opened draft and its text (navigated: %s)",
-    async (navigated) => {
-      testState.reset(null);
+  it.each([
+    { navigated: false, reusable: false },
+    { navigated: true, reusable: false },
+    { navigated: true, reusable: true },
+  ])(
+    "keeps a concurrently opened draft and its text ($navigated, $reusable)",
+    async ({ navigated, reusable }) => {
       const raced = {
         draftId: "draft-raced",
         environmentId: "environment-ssh",
         promotedTo: null,
         threadId: "thread-raced",
       };
-      testState.draftStore.getDraftSessionByLogicalProjectKey
-        .mockReturnValueOnce(null)
-        .mockReturnValueOnce(raced as never);
-      testState.giveUserText("draft-raced");
-
+      testState.reset(raced);
+      testState.draftStore.getDraftSessionByLogicalProjectKey.mockReturnValueOnce(
+        reusable ? (raced as never) : null,
+      );
       const pendingOpen = useNewThreadHandler()(
         { environmentId: "environment-ssh", projectId: "project-remote" } as never,
         { prompt: "Read the playbook. " },
       );
+      testState.giveUserText("draft-raced");
       if (navigated) {
         testState.openEmptyDraft("draft-raced");
         testState.router.state.location.href = "/draft/draft-raced";
       }
       const opened = await pendingOpen;
-
       expect(opened?.draftId).toBe("draft-raced");
       expect(testState.draftStore.setPrompt).not.toHaveBeenCalled();
     },

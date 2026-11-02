@@ -251,9 +251,6 @@ export function createNewThreadHandler(router: AnyRouter) {
           workspaceContext = pickExplicitWorkspaceOptions(options);
         } else if (!isDraftAlreadyOpen) {
           const defaultEnvMode = await resolveDefaultEnvMode();
-          if (abandonedSinceRequest()) {
-            return null;
-          }
           // Concurrent calls may change the draft; stale resets, remaps, or navigation could clobber it.
           const routeTargetNow = getCurrentRouteTarget();
           const openedMeanwhile =
@@ -267,7 +264,24 @@ export function createNewThreadHandler(router: AnyRouter) {
           const investedMeanwhile = composerDraftHasUserContent(
             getComposerDraft(emptyStoredDraftThread.draftId),
           );
-          if (openedMeanwhile || promotedMeanwhile || remappedMeanwhile || investedMeanwhile) {
+          if (
+            openedMeanwhile &&
+            !promotedMeanwhile &&
+            !remappedMeanwhile &&
+            (project === undefined || readProject(projectRef) !== null)
+          ) {
+            seedPrompt(emptyStoredDraftThread.draftId);
+            return {
+              draftId: emptyStoredDraftThread.draftId,
+              threadId: emptyStoredDraftThread.threadId,
+            };
+          }
+          if (
+            abandonedSinceRequest() ||
+            promotedMeanwhile ||
+            remappedMeanwhile ||
+            investedMeanwhile
+          ) {
             return null;
           }
           workspaceContext = {
