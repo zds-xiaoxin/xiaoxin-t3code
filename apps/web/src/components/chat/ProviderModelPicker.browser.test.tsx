@@ -1,4 +1,9 @@
-import { ProviderDriverKind, ProviderInstanceId, type ModelSelection } from "@t3tools/contracts";
+import {
+  ProviderDriverKind,
+  ProviderInstanceId,
+  type ModelSelection,
+  type ProviderOptionSelection,
+} from "@t3tools/contracts";
 import { useState } from "react";
 import { expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
@@ -8,6 +13,133 @@ import "~/index.css";
 import { render } from "../../../test/render";
 import { deriveProviderInstanceEntries } from "../../providerInstances";
 import { ProviderModelPicker } from "./ProviderModelPicker";
+import { ComposerEffortMenu, describeComposerEffort } from "./ComposerModelEffort";
+import { markOpenToPermissions } from "./composerEventScope";
+import { runtimeModeConfig, runtimeModeOptions } from "./runtimeModeConfig";
+
+it("keeps model selection separate from parameter changes and permission shortcuts", async () => {
+  const instanceId = ProviderInstanceId.make("codex");
+  const models = ["first", "second"].map((slug) => ({
+    slug,
+    name: `${slug} model`,
+    isCustom: true,
+    capabilities: {
+      optionDescriptors: [
+        {
+          id: "reasoningEffort",
+          label: "Effort",
+          type: "select" as const,
+          options: [
+            { id: "low", label: "Low" },
+            { id: "high", label: "High" },
+          ],
+          currentValue: "high",
+        },
+      ],
+    },
+  }));
+  const entries = deriveProviderInstanceEntries([
+    {
+      instanceId,
+      driver: ProviderDriverKind.make("codex"),
+      enabled: true,
+      installed: true,
+      version: null,
+      status: "ready",
+      auth: { status: "authenticated" },
+      checkedAt: "2026-11-01T00:00:00.000Z",
+      models,
+      slashCommands: [],
+      skills: [],
+    },
+  ]);
+  function Controls() {
+    const [model, setModel] = useState("first");
+    const [options, setOptions] = useState<ReadonlyArray<ProviderOptionSelection>>([]);
+    const traits = {
+      provider: ProviderDriverKind.make("codex"),
+      instanceId,
+      models,
+      model,
+      modelOptions: options,
+      planModeEnabled: false,
+      onModelOptionsChange: (next: ReadonlyArray<ProviderOptionSelection> | undefined) =>
+        setOptions(next ?? []),
+    };
+    const effort = describeComposerEffort(traits, "label", "sm");
+    return (
+      <>
+        <ProviderModelPicker
+          environmentId={null}
+          activeInstanceId={instanceId}
+          model={model}
+          lockedProvider={null}
+          instanceEntries={entries}
+          modelOptionsByInstance={new Map([[instanceId, models]])}
+          onInstanceModelChange={(_, next) => setModel(next)}
+        />
+        <ComposerEffortMenu
+          traits={traits}
+          modelLabel={model}
+          suffix={effort.suffix}
+          detail={effort.detail}
+          size="sm"
+          hidden={false}
+          disabled={false}
+          ownsModeShortcut
+          runtimeMode="approval-required"
+          runtimeModeOptions={runtimeModeOptions.map((mode) => ({
+            mode,
+            ...runtimeModeConfig[mode],
+          }))}
+          onRuntimeModeChange={vi.fn()}
+        />
+      </>
+    );
+  }
+  await using screen = await render(<Controls />);
+  await screen.getByRole("button", { name: "first model", exact: true }).click();
+  await page.getByRole("option", { name: /second model/ }).click();
+  await expect.element(page.getByRole("combobox")).not.toBeInTheDocument();
+  await expect
+    .element(screen.getByRole("button", { name: "second model", exact: true }))
+    .toBeVisible();
+  const parameters = screen.getByRole("button", { name: /Model options|模型参数/ });
+  await parameters.click();
+  await page.getByRole("radio", { name: "Low", exact: true }).click();
+  await expect.element(page.getByRole("radio", { name: "Low", exact: true })).toBeChecked();
+  markOpenToPermissions(parameters.element() as HTMLButtonElement);
+  await parameters.click();
+  await expect
+    .element(
+      page.getByRole("menuitemradio", {
+        name: runtimeModeConfig["approval-required"].label,
+        exact: true,
+      }),
+    )
+    .toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("radio", { name: "Low", exact: true })).toBeChecked();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("radio", { name: "Low", exact: true }))
+    .not.toBeInTheDocument();
+  markOpenToPermissions(parameters.element() as HTMLButtonElement);
+  await parameters.click();
+  await expect
+    .element(
+      page.getByRole("menuitemradio", {
+        name: runtimeModeConfig["approval-required"].label,
+        exact: true,
+      }),
+    )
+    .toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("radio", { name: "Low", exact: true }))
+    .not.toBeInTheDocument();
+});
 
 it("keeps each registry image when adding a model from another ACP agent", async () => {
   const icons = [

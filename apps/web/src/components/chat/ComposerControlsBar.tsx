@@ -23,20 +23,16 @@ import {
 import type { EffortDisplay } from "@t3tools/contracts/settings";
 import { cn } from "~/lib/utils";
 import { resolveComposerTraitsInput } from "./composerProviderState";
-import {
-  ComposerEffortColumn,
-  ComposerPickerFooter,
-  describeComposerEffort,
-} from "./ComposerModelEffort";
+import { ComposerEffortMenu, describeComposerEffort } from "./ComposerModelEffort";
 import type { useComposerProviderModel } from "./useComposerProviderModel";
 import { resolveComposerControlsOwnership } from "./composerControlsOwnership";
 
 /**
- * The composer footer controls: the model picker (which also holds effort, speed and
- * permissions), mode controls and the overflow menu for blocks that do not fit. Rendered in the
+ * The composer footer controls: separate model and parameter pickers,
+ * mode controls and the overflow menu for blocks that do not fit. Rendered in the
  * expanded footer or the resting controls host.
  */
-// Model and effort share one trigger; it stays filled while its popup is open.
+// Separate model selection from effort, speed and permissions.
 const MODEL_TRIGGER_STATES = "data-popup-open:bg-accent data-popup-open:text-foreground";
 
 export function ComposerControlsBar(props: {
@@ -221,20 +217,6 @@ export function ComposerControlsBar(props: {
         MODEL_TRIGGER_STATES,
         composerControlsCollapsed ? "min-w-13 shrink text-xs!" : "min-w-13",
       )}
-      triggerSuffix={effort.suffix}
-      triggerDetail={effort.detail}
-      triggerShortcuts={
-        pickerOwnsModeShortcut ? "composer.effort composer.mode" : "composer.effort"
-      }
-      effortColumn={<ComposerEffortColumn traits={traitsInput} />}
-      footer={
-        <ComposerPickerFooter
-          traits={traitsInput}
-          runtimeMode={compatibleRuntimeMode}
-          runtimeModeOptions={compatibleRuntimeModeOptions}
-          onRuntimeModeChange={handleRuntimeModeChange}
-        />
-      }
       terminalOpen={terminalOpen}
       open={modelPickerOpen}
       instanceIndicatorBackground={
@@ -268,6 +250,22 @@ export function ComposerControlsBar(props: {
   ) : (
     <>
       {composerModelPicker}
+      <ComposerEffortMenu
+        traits={traitsInput}
+        modelLabel={
+          selectedProviderModels.find((model) => model.slug === selectedModel)?.name ??
+          selectedModel
+        }
+        suffix={effort.suffix}
+        detail={effort.detail}
+        size={controlSize}
+        hidden={composerControlsHidden}
+        disabled={providerCatalogPending || isSendBusy}
+        ownsModeShortcut={pickerOwnsModeShortcut}
+        runtimeMode={compatibleRuntimeMode}
+        runtimeModeOptions={compatibleRuntimeModeOptions}
+        onRuntimeModeChange={handleRuntimeModeChange}
+      />
 
       <>
         {restingBlockDefs.map((def, index) => {
