@@ -367,11 +367,26 @@ export function createNewThreadHandler(router: AnyRouter) {
     const createdAt = new Date().toISOString();
     return (async () => {
       const initialEnvMode = options?.envMode ?? (await resolveDefaultEnvMode());
+      const racedDraft = getDraftSessionByLogicalProjectKey(logicalProjectKey);
       if (abandonedSinceRequest()) {
+        const routeTargetNow = getCurrentRouteTarget();
+        if (
+          racedDraft &&
+          routeTargetNow?.kind === "draft" &&
+          routeTargetNow.draftId === racedDraft.draftId &&
+          (project === undefined || readProject(projectRef) !== null) &&
+          !hasBranchOption &&
+          !hasWorktreePathOption &&
+          !hasEnvModeOption &&
+          !hasStartFromOriginOption &&
+          readThreadShell(scopeThreadRef(racedDraft.environmentId, racedDraft.threadId)) === null
+        ) {
+          seedPrompt(racedDraft.draftId);
+          return { draftId: racedDraft.draftId, threadId: racedDraft.threadId };
+        }
         return null;
       }
       // Reuse drafts registered while awaiting so their pending navigation cannot lose them.
-      const racedDraft = getDraftSessionByLogicalProjectKey(logicalProjectKey);
       if (
         racedDraft &&
         racedDraft.draftId !== storedDraftThread?.draftId &&
