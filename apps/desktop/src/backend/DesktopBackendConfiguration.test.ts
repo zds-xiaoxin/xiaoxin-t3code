@@ -3,6 +3,8 @@ import { assert, describe, it } from "@effect/vitest";
 import { currentDesktopBootstrapToken } from "@t3tools/shared/desktopBootstrapToken";
 import * as Clock from "effect/Clock";
 import * as Effect from "effect/Effect";
+import * as Deferred from "effect/Deferred";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as ManagedRuntime from "effect/ManagedRuntime";
@@ -21,15 +23,15 @@ import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopWslEnvironment from "../wsl/DesktopWslEnvironment.ts";
 import * as DesktopWslServerTree from "../wsl/DesktopWslServerTree.ts";
 
-const layerShellEnvironment = (prepared = true) =>
+const layerShellEnvironment = (prepared = true, discovery = Effect.succeed(prepared)) =>
   Layer.succeed(DesktopShellEnvironment.DesktopShellEnvironment, {
     installIntoProcess: Effect.succeed(prepared),
-    awaitDiscovery: Effect.succeed(prepared),
+    awaitDiscovery: discovery,
     updates: Stream.empty,
   });
 
-const layerBackendConfiguration = (prepared = true) =>
-  DesktopBackendConfiguration.layer.pipe(Layer.provide(layerShellEnvironment(prepared)));
+const layerBackendConfiguration = (prepared = true, discovery = Effect.succeed(prepared)) =>
+  DesktopBackendConfiguration.layer.pipe(Layer.provide(layerShellEnvironment(prepared, discovery)));
 
 const layerServerExposure = Layer.succeed(DesktopServerExposure.DesktopServerExposure, {
   getState: Effect.die("unexpected getState"),
@@ -109,6 +111,7 @@ const withHarness = <A, E, R>(
     | DesktopBackendConfiguration.DesktopBackendConfiguration
   >,
   prepared = true,
+  discovery = Effect.succeed(prepared),
 ) =>
   Effect.gen(function* () {
     const fileSystem = yield* FileSystem.FileSystem;
@@ -118,7 +121,7 @@ const withHarness = <A, E, R>(
 
     return yield* effect.pipe(
       Effect.provide(
-        layerBackendConfiguration(prepared).pipe(
+        layerBackendConfiguration(prepared, discovery).pipe(
           Layer.provideMerge(layerServerExposure),
           Layer.provideMerge(DesktopAppSettings.layerTest()),
           Layer.provideMerge(DesktopWslEnvironment.layerTest()),
@@ -222,6 +225,32 @@ const withPackagedWslHarness = <A, E, R>(
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer));
 
 describe("DesktopBackendConfiguration", () => {
+  it.effect("waits for discovered paths before resolving the backend launch config", () =>
+    Effect.gen(function* () {
+      const started = yield* Deferred.make<void>();
+      const release = yield* Deferred.make<void>();
+      const inheritedPath = process.env.PATH;
+      yield* withHarness(
+        Effect.gen(function* () {
+          const configuration = yield* DesktopBackendConfiguration.DesktopBackendConfiguration;
+          const resolving = yield* configuration.resolvePrimary.pipe(Effect.forkChild);
+          yield* Deferred.await(started);
+          assert.isUndefined(resolving.pollUnsafe());
+          yield* Deferred.succeed(release, undefined);
+          yield* Fiber.join(resolving);
+          assert.include(process.env.PATH, "/discovered/provider/bin");
+        }),
+        true,
+        Effect.gen(function* () {
+          yield* Deferred.succeed(started, undefined);
+          yield* Deferred.await(release);
+          process.env.PATH = `/discovered/provider/bin:${inheritedPath ?? ""}`;
+          return true;
+        }),
+      ).pipe(Effect.ensuring(Effect.sync(() => restoreEnv("PATH", inheritedPath))));
+    }),
+  );
+
   it.effect("resolvePrimary produces a stable scoped bootstrap token", () =>
     withHarness(
       Effect.gen(function* () {
