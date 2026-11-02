@@ -6,15 +6,23 @@ import {
 } from "@t3tools/client-runtime/model-traits";
 import type { ProviderOptionDescriptor, RuntimeMode } from "@t3tools/contracts";
 import type { EffortDisplay } from "@t3tools/contracts/settings";
-import { CheckIcon, ChevronUpIcon } from "lucide-react";
+import { CheckIcon, ChevronUpIcon, GaugeIcon } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, use, useRef } from "react";
 
 import { cn } from "~/lib/utils";
+import { uiText } from "~/i18n";
 import { Menu, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
-import type { ComposerControlSize } from "./ComposerControl";
+import { ComposerControl, type ComposerControlSize } from "./ComposerControl";
+import { Popover, PopoverPopup, PopoverTrigger } from "../ui/popover";
+import { useComposerMenuState } from "./useComposerMenuState";
 import { ComposerPermissionsSection, type RuntimeModeOption } from "./ComposerFooterControls";
-import { composerFloatingLayerProps, focusCheckedPermission } from "./composerEventScope";
+import {
+  composerFloatingLayerProps,
+  focusCheckedPermission,
+  takeOpenTarget,
+  useComposerMenuProps,
+} from "./composerEventScope";
 import { EffortGlyph, FastBolt, resolveEffortGlyph } from "./EffortGlyph";
 import { DockedPickerContext } from "./ProviderModelPicker";
 import {
@@ -294,7 +302,7 @@ function NoEffortRow() {
 }
 
 /** The model picker's effort column: the selected model's levels and its other options. */
-export function ComposerEffortColumn(props: { traits: TraitsSelectionInput | null }) {
+function ComposerEffortColumn(props: { traits: TraitsSelectionInput | null }) {
   const picker = use(DockedPickerContext);
   const visibility = props.traits ? getTraitsSectionVisibility(props.traits) : null;
   const effort =
@@ -442,7 +450,7 @@ function PermissionsMenu(props: {
 }
 
 /** The model picker's footer: speed stays one click away, permissions sit one menu deeper. */
-export function ComposerPickerFooter(props: {
+function ComposerPickerFooter(props: {
   traits: TraitsSelectionInput | null;
   runtimeMode: RuntimeMode;
   runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
@@ -457,5 +465,97 @@ export function ComposerPickerFooter(props: {
         onChange={props.onRuntimeModeChange}
       />
     </div>
+  );
+}
+
+/** Keep model selection small; parameter controls have their own keyboard-accessible popup. */
+export function ComposerEffortMenu(props: {
+  traits: TraitsSelectionInput | null;
+  modelLabel: string;
+  suffix: ReactNode;
+  detail: string | null;
+  size: ComposerControlSize;
+  hidden: boolean;
+  disabled: boolean;
+  ownsModeShortcut: boolean;
+  runtimeMode: RuntimeMode;
+  runtimeModeOptions: ReadonlyArray<RuntimeModeOption>;
+  onRuntimeModeChange: (mode: RuntimeMode) => void;
+}) {
+  const [open, setOpen] = useComposerMenuState(props.hidden || props.disabled);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const popup = useRef<HTMLDivElement>(null);
+  const floatingProps = useComposerMenuProps();
+  const focusTarget = (target: "effort" | "permissions" | null) => {
+    if (target === "permissions") {
+      popup.current
+        ?.querySelector<HTMLButtonElement>("[data-composer-permissions-trigger]")
+        ?.click();
+      return;
+    }
+    const selected = popup.current?.querySelector<HTMLElement>(
+      '[data-effort-level][aria-checked="true"]:not(:disabled)',
+    );
+    const first = popup.current?.querySelector<HTMLElement>(
+      "[data-effort-row]:not(:disabled), [data-composer-permissions-trigger]",
+    );
+    (selected ?? first)?.focus({ preventScroll: true });
+  };
+  return (
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+      onOpenChangeComplete={(isOpen) => {
+        if (!isOpen) return;
+        focusTarget(takeOpenTarget(trigger.current));
+      }}
+    >
+      <PopoverTrigger
+        render={
+          <ComposerControl
+            ref={trigger}
+            size={props.size}
+            disabled={props.disabled}
+            aria-label={uiText("Model options")}
+            title={props.detail ?? uiText("Model options")}
+            className="shrink-0 gap-1 px-1.5"
+            onClick={(event) => {
+              if (!open) return;
+              const target = takeOpenTarget(trigger.current);
+              if (!target) return;
+              (
+                event as typeof event & { preventBaseUIHandler?: () => void }
+              ).preventBaseUIHandler?.();
+              focusTarget(target);
+            }}
+            data-composer-shortcut={
+              props.ownsModeShortcut ? "composer.effort composer.mode" : "composer.effort"
+            }
+          />
+        }
+      >
+        {props.suffix ?? <GaugeIcon className="size-3.5" />}
+      </PopoverTrigger>
+      <PopoverPopup
+        {...floatingProps}
+        ref={popup}
+        padding="none"
+        align="end"
+        className="w-64 max-w-[calc(100vw-2rem)]"
+        data-model-parameters-menu
+      >
+        <DockedPickerContext value={{ modelLabel: props.modelLabel }}>
+          <div className="flex max-h-86.5 flex-col">
+            <ComposerEffortColumn traits={props.traits} />
+            <ComposerPickerFooter
+              traits={props.traits}
+              runtimeMode={props.runtimeMode}
+              runtimeModeOptions={props.runtimeModeOptions}
+              onRuntimeModeChange={props.onRuntimeModeChange}
+            />
+          </div>
+        </DockedPickerContext>
+      </PopoverPopup>
+    </Popover>
   );
 }

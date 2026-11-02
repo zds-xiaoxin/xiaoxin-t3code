@@ -2891,6 +2891,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Unable to update popped-out preview": "无法更新弹出的预览",
   "Failed to copy": "复制失败",
   "More composer controls": "更多输入控制",
+  "Model options": "模型参数",
   Mode: "模式",
   Chat: "对话",
   Access: "权限",
