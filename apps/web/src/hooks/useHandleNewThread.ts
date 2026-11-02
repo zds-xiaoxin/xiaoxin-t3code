@@ -71,6 +71,9 @@ export type NewThreadHandler = ReturnType<typeof createNewThreadHandler>;
 
 export function createNewThreadHandler(router: AnyRouter) {
   const getCurrentRouteTarget = () => {
+    // Location advances before committed match params during a concurrent draft open.
+    const draftPath = /^\/draft\/([^/]+)\/?$/.exec(router.state.location.pathname);
+    if (draftPath?.[1]) return resolveThreadRouteTarget({ draftId: draftPath[1] });
     const currentRouteParams = router.state.matches[router.state.matches.length - 1]?.params ?? {};
     return resolveThreadRouteTarget(currentRouteParams);
   };
@@ -251,9 +254,6 @@ export function createNewThreadHandler(router: AnyRouter) {
           workspaceContext = pickExplicitWorkspaceOptions(options);
         } else if (!isDraftAlreadyOpen) {
           const defaultEnvMode = await resolveDefaultEnvMode();
-          if (abandonedSinceRequest()) {
-            return null;
-          }
           // Concurrent calls may change the draft; stale resets, remaps, or navigation could clobber it.
           const routeTargetNow = getCurrentRouteTarget();
           const openedMeanwhile =
@@ -267,7 +267,24 @@ export function createNewThreadHandler(router: AnyRouter) {
           const investedMeanwhile = composerDraftHasUserContent(
             getComposerDraft(emptyStoredDraftThread.draftId),
           );
-          if (openedMeanwhile || promotedMeanwhile || remappedMeanwhile || investedMeanwhile) {
+          if (
+            openedMeanwhile &&
+            !promotedMeanwhile &&
+            !remappedMeanwhile &&
+            (project === undefined || readProject(projectRef) !== null)
+          ) {
+            seedPrompt(emptyStoredDraftThread.draftId);
+            return {
+              draftId: emptyStoredDraftThread.draftId,
+              threadId: emptyStoredDraftThread.threadId,
+            };
+          }
+          if (
+            abandonedSinceRequest() ||
+            promotedMeanwhile ||
+            remappedMeanwhile ||
+            investedMeanwhile
+          ) {
             return null;
           }
           workspaceContext = {
@@ -367,11 +384,26 @@ export function createNewThreadHandler(router: AnyRouter) {
     const createdAt = new Date().toISOString();
     return (async () => {
       const initialEnvMode = options?.envMode ?? (await resolveDefaultEnvMode());
+      const racedDraft = getDraftSessionByLogicalProjectKey(logicalProjectKey);
       if (abandonedSinceRequest()) {
+        const routeTargetNow = getCurrentRouteTarget();
+        if (
+          racedDraft &&
+          routeTargetNow?.kind === "draft" &&
+          routeTargetNow.draftId === racedDraft.draftId &&
+          (project === undefined || readProject(projectRef) !== null) &&
+          !hasBranchOption &&
+          !hasWorktreePathOption &&
+          !hasEnvModeOption &&
+          !hasStartFromOriginOption &&
+          readThreadShell(scopeThreadRef(racedDraft.environmentId, racedDraft.threadId)) === null
+        ) {
+          seedPrompt(racedDraft.draftId);
+          return { draftId: racedDraft.draftId, threadId: racedDraft.threadId };
+        }
         return null;
       }
       // Reuse drafts registered while awaiting so their pending navigation cannot lose them.
-      const racedDraft = getDraftSessionByLogicalProjectKey(logicalProjectKey);
       if (
         racedDraft &&
         racedDraft.draftId !== storedDraftThread?.draftId &&

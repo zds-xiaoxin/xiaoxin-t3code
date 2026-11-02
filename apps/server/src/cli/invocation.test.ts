@@ -5,12 +5,19 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
 
+import { vi } from "vite-plus/test";
+
 import packageJson from "../../package.json" with { type: "json" };
 import {
   resolveHostCliCommand,
   resolveRootCliCommand,
   resolveServerInstallation,
 } from "./invocation.ts";
+
+vi.mock("../../package.json", async (importOriginal) => {
+  const original = await importOriginal<{ default: Record<string, unknown> }>();
+  return { ...original, default: { ...original.default, version: "1.0.0" } };
+});
 
 it.layer(NodeServices.layer)("root CLI commands", (it) => {
   const rootCommand = (input: {

@@ -307,7 +307,7 @@ export function DeviceToolsPanel(props: {
               onSubmit={(payload) =>
                 foregroundApp
                   ? act({ type: "sendPush", appId: foregroundApp.id, payload })
-                  : Promise.resolve()
+                  : Promise.resolve(false)
               }
             />
             {!foregroundApp ? (
@@ -340,7 +340,7 @@ function SwitchRow(props: {
   readonly label: string;
   readonly checked: boolean | undefined;
   readonly disabled: boolean;
-  readonly onChange: (value: boolean) => Promise<void>;
+  readonly onChange: (value: boolean) => Promise<unknown>;
 }) {
   return (
     <Row label={props.label}>
@@ -363,7 +363,7 @@ function ChoiceSelect<V extends string>(props: {
   }>;
   readonly disabled: boolean;
   readonly placeholder?: string;
-  readonly onChange: (value: V) => Promise<void>;
+  readonly onChange: (value: V) => Promise<unknown>;
 }) {
   const current = props.options.find((option) => option.value === props.value);
   return (
@@ -397,13 +397,15 @@ function SubmitRow(props: {
   readonly placeholder: string;
   readonly action: string;
   readonly disabled: boolean;
-  readonly onSubmit: (value: string) => Promise<void>;
+  readonly onSubmit: (value: string) => Promise<boolean>;
 }) {
   const [value, setValue] = useState("");
   const submit = () => {
     const trimmed = value.trim();
     if (!trimmed) return;
-    void props.onSubmit(trimmed).then(() => setValue(""));
+    void props.onSubmit(trimmed).then((sent) => {
+      if (sent) setValue("");
+    });
   };
   return (
     <form
@@ -436,8 +438,8 @@ function SubmitRow(props: {
 function LocationSection(props: {
   readonly disabled: boolean;
   readonly canClear: boolean;
-  readonly onSet: (latitude: number, longitude: number) => Promise<void>;
-  readonly onClear: () => Promise<void>;
+  readonly onSet: (latitude: number, longitude: number) => Promise<unknown>;
+  readonly onClear: () => Promise<unknown>;
 }) {
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -534,7 +536,7 @@ function PermissionsSection(props: {
     appId: string,
     permission: DevicePermission,
     decision: "grant" | "revoke" | "reset",
-  ) => Promise<void>;
+  ) => Promise<unknown>;
 }) {
   const [appId, setAppId] = useState("");
   const [permission, setPermission] = useState<DevicePermission>("camera");

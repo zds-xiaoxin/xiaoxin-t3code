@@ -1,5 +1,6 @@
 // Adapted from ZhiweiXiao98/t3code b604575 (MIT). Application UI copy only.
 export const zhCN: Readonly<Record<string, string>> = {
+  "{0} of {1} selected": "已选择 {0}/{1} 项",
   "Context from": "上下文来自",
   "Show more": "显示更多",
   "Loading commit...": "正在加载提交…",

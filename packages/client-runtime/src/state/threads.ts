@@ -1027,6 +1027,7 @@ export const makeEnvironmentThreadState = Effect.fn("EnvironmentThreadState.make
             }
             case "missing": {
               yield* setDeleted();
+              if (resumeCache?.owner === owner) resumeCache.snapshot = undefined;
               yield* awaitCreatedThread();
               current = yield* SubscriptionRef.get(state);
               yield* Ref.set(awaitingCompletion, true);
@@ -1143,3 +1144,4 @@ export * from "./threadFamilies.ts";
 export * from "./olderSettledThreads.ts";
 export * from "./threadShell.ts";
 export * from "./threadState.ts";
+export * from "./threadTagFilter.ts";
