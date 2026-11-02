@@ -67,7 +67,7 @@ const OrchestratorMcpSchedule = Schema.Union([
   OrchestratorMcpScheduleFromJsonString,
 ]).annotate({
   description:
-    "Trigger: {type:'interval',everyMs}, {type:'fixed_time',timeOfDay,timeZone?,weekdays?}, or {type:'webhook'}. timeZone uses IANA names such as Asia/Shanghai.",
+    "Trigger: {type:'interval',everyMs}, {type:'fixed_time',timeOfDay,timeZone?,weekdays?}, {type:'once',runAt}, or {type:'webhook'}. timeZone uses IANA names such as Asia/Shanghai.",
 });
 
 const OrchestratorMcpTargetOptionsFromRecord = Schema.Record(
@@ -690,6 +690,9 @@ export const OrchestratorMcpScheduledTask = Schema.Struct({
       "Public URL for the sender. Absent: no T3 Connect tunnel. The user must enable T3 Connect remote access.",
   }),
   webhookSignature: Schema.optional(Schema.Literals(["none", "set"])),
+  blockedByPolicy: Schema.optional(Schema.String).annotate({
+    description: "Present when an administrator's policy stops this task from running.",
+  }),
 });
 export type OrchestratorMcpScheduledTask = typeof OrchestratorMcpScheduledTask.Type;
 

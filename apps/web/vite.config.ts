@@ -24,6 +24,9 @@ import { thirdPartyLicensesPlugin } from "../../scripts/lib/third-party-licenses
 import { tailwindPlugins } from "./vite/tailwind";
 import { warmBundledDevPlugin } from "./vite/warmBundledDev";
 
+const dependencyStore = await NodeFSP.realpath(
+  new URL("../../node_modules/.pnpm", import.meta.url),
+);
 const repoEnv = loadRepoEnv();
 Object.assign(process.env, repoEnv);
 
@@ -335,6 +338,8 @@ export default defineConfig(() => {
       bundledDev,
     },
     server: {
+      // Shared pnpm stores may live outside this checkout. Serve only that dependency tree.
+      fs: { allow: [NodeURL.fileURLToPath(new URL("../..", import.meta.url)), dependencyStore] },
       host,
       port,
       strictPort: true,

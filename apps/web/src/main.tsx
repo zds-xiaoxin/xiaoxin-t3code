@@ -9,6 +9,7 @@ import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
 import { clearChunkReloadGuard, reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
 document.documentElement.lang = readUiLocale();
+document.documentElement.dataset.platform = /win/i.test(navigator.platform) ? "windows" : "other";
 const router = startAppServices();
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 let chunkLoadFailed = false;
