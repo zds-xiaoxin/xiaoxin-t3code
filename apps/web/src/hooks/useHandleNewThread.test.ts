@@ -21,7 +21,7 @@ const testState = vi.hoisted(() => {
   let draftsWithUserText = new Set<string>();
   const router = {
     state: {
-      location: { href: "/" },
+      location: { href: "/", pathname: "/" },
       matches: [{ params: {} }],
     },
     navigate: vi.fn(
@@ -31,6 +31,7 @@ const testState = vi.hoisted(() => {
         };
       }) => {
         router.state.location.href = `/draft/${request.params.draftId}`;
+        router.state.location.pathname = router.state.location.href;
       },
     ),
   };
@@ -107,6 +108,7 @@ const testState = vi.hoisted(() => {
         defaultRuntimeMode: "full-access",
       };
       router.state.location.href = "/";
+      router.state.location.pathname = "/";
       router.navigate.mockClear();
       draftStore.setDraftThreadContext.mockClear();
       draftStore.setLogicalProjectDraftThreadId.mockClear();
@@ -245,7 +247,8 @@ vi.mock("../state/server", () => ({
   primaryServerSettingsAtom: "primary-settings",
 }));
 vi.mock("../threadRoutes", () => ({
-  resolveThreadRouteTarget: () => testState.openDraftRoute,
+  resolveThreadRouteTarget: (params: { draftId?: string }) =>
+    params.draftId ? { kind: "draft", draftId: params.draftId } : testState.openDraftRoute,
 }));
 vi.mock("../uiStateStore", () => ({
   legacyProjectCwdPreferenceKey: () => "remote-project",
@@ -314,12 +317,14 @@ describe.each([
 });
 describe("useNewThreadHandler", () => {
   it.each([
-    { navigated: false, reusable: false },
-    { navigated: true, reusable: false },
-    { navigated: true, reusable: true },
+    { navigated: false, reusable: false, pendingMatches: false },
+    { navigated: true, reusable: false, pendingMatches: false },
+    { navigated: true, reusable: false, pendingMatches: true },
+    { navigated: true, reusable: true, pendingMatches: false },
+    { navigated: true, reusable: true, pendingMatches: true },
   ])(
-    "keeps a concurrently opened draft and its text ($navigated, $reusable)",
-    async ({ navigated, reusable }) => {
+    "keeps a concurrently opened draft and its text ($navigated, $reusable, $pendingMatches)",
+    async ({ navigated, reusable, pendingMatches }) => {
       const raced = {
         draftId: "draft-raced",
         environmentId: "environment-ssh",
@@ -336,8 +341,9 @@ describe("useNewThreadHandler", () => {
       );
       testState.giveUserText("draft-raced");
       if (navigated) {
-        testState.openEmptyDraft("draft-raced");
+        if (!pendingMatches) testState.openEmptyDraft("draft-raced");
         testState.router.state.location.href = "/draft/draft-raced";
+        testState.router.state.location.pathname = "/draft/draft-raced";
       }
       const opened = await pendingOpen;
       expect(opened?.draftId).toBe("draft-raced");

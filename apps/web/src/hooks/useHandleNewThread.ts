@@ -71,6 +71,9 @@ export type NewThreadHandler = ReturnType<typeof createNewThreadHandler>;
 
 export function createNewThreadHandler(router: AnyRouter) {
   const getCurrentRouteTarget = () => {
+    // Location advances before committed match params during a concurrent draft open.
+    const draftPath = /^\/draft\/([^/]+)\/?$/.exec(router.state.location.pathname);
+    if (draftPath?.[1]) return resolveThreadRouteTarget({ draftId: draftPath[1] });
     const currentRouteParams = router.state.matches[router.state.matches.length - 1]?.params ?? {};
     return resolveThreadRouteTarget(currentRouteParams);
   };
