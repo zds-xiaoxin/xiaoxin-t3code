@@ -834,6 +834,7 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
     announce(`Model: ${name ?? selectedSlug}`, "model-picker");
   };
 
+  const frameHeight = `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`;
   return (
     <TooltipProvider delay={0}>
       <WindowKeyDownListener onKeyDown={onWindowKeyDown} />
@@ -850,7 +851,13 @@ export const ModelPickerContent = memo(function ModelPickerContent(props: {
             : isSearching
               ? { height: searchHeight }
               : {
-                  minHeight: `min(calc(var(--spacing) * ${tallestTabUnits + LIST_CHROME_UNITS} + 1px), calc(var(--spacing) * 86.5))`,
+                  minHeight: frameHeight,
+                  height:
+                    tallestTabUnits > 0 &&
+                    providerSetupEntries.length === 0 &&
+                    updateRequiredNotices.length === 0
+                      ? frameHeight
+                      : undefined,
                 }
         }
         data-model-picker-content="true"
