@@ -170,7 +170,9 @@ export function ContextWindowMeter(props: {
           ) : null}
           {usage.cost != null ? (
             <div className="text-pretty text-secondary-label text-2xs">
-              {uiText("Reference cost is not subscription usage. A zero can also mean unreported cost.")}
+              {uiText(
+                "Reference cost is not subscription usage. A zero can also mean unreported cost.",
+              )}
             </div>
           ) : null}
           {usage.compactsAutomatically ? (

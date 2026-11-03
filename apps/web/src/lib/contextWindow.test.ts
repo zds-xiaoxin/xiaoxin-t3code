@@ -12,14 +12,22 @@ import {
 } from "@t3tools/contracts";
 import { makeThreadProjectionFixture } from "../test-fixtures";
 import { shouldOfferResumeCompaction } from "../components/chat/ContextWindowMeter.logic";
-import { deriveLatestContextWindowSnapshot, latestProviderTurnTokenUsage, formatContextWindowTokens } from "./contextWindow";
+import {
+  deriveLatestContextWindowSnapshot,
+  latestProviderTurnTokenUsage,
+  formatContextWindowTokens,
+} from "./contextWindow";
 
 const decodeTokenUsage = Schema.decodeSync(OrchestrationV2ProviderTurnTokenUsage);
 
 describe("V2 context window presentation", () => {
-  it.each([[null, "—"], [Number.NaN, "—"], [0, "0"], [1_200, "1.2k"]] as const)(
-    "distinguishes missing token usage from a reported zero: %s",
-    (value, expected) => expect(formatContextWindowTokens(value)).toBe(expected),
+  it.each([
+    [null, "?"],
+    [Number.NaN, "?"],
+    [0, "0"],
+    [1_200, "1.2k"],
+  ] as const)("distinguishes missing token usage from a reported zero: %s", (value, expected) =>
+    expect(formatContextWindowTokens(value)).toBe(expected),
   );
   it("uses retained compaction token data when available", () => {
     const snapshot = deriveLatestContextWindowSnapshot([

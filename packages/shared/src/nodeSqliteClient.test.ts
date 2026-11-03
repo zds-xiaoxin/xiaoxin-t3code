@@ -7,6 +7,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as Result from "effect/Result";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as Statement from "effect/sql/Statement";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
@@ -512,4 +513,62 @@ it.effect.each([
         masked ? [[1], [2]] : [[2]],
       );
     }).pipe(Effect.provide(SqliteClient.layer({ filename: ":memory:" }))),
+);
+
+it.effect("falls back to the main writer when the worker cannot start", () =>
+  Effect.gen(function* () {
+    const { filename, other } = yield* makeTempDatabase;
+    yield* Effect.acquireUseRelease(
+      Effect.sync(() => {
+        failingWorkers.message = "synthetic startup failure";
+      }),
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql.withTransaction(sql`UPDATE counters SET value = 7 WHERE id = 1`);
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      () =>
+        Effect.sync(() => {
+          failingWorkers.message = undefined;
+        }),
+    );
+    assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 7);
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect(
+  "rolls back a crashed writer transaction and preserves committed data after restart",
+  () =>
+    Effect.gen(function* () {
+      const { filename, other } = yield* makeTempDatabase;
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql`UPDATE counters SET value = 1 WHERE id = 1`;
+          const result = yield* sql
+            .withTransaction(
+              Effect.gen(function* () {
+                yield* sql`UPDATE counters SET value = 99 WHERE id = 1`;
+                yield* Effect.promise(() => startedWorkers.at(-1)!.terminate());
+                yield* sql`UPDATE counters SET value = 100 WHERE id = 1`;
+              }),
+            )
+            .pipe(Effect.result);
+          assert.isTrue(Result.isFailure(result));
+          assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 1);
+          const laterWrite = yield* sql`UPDATE counters SET value = 2 WHERE id = 1`.pipe(
+            Effect.result,
+          );
+          assert.isTrue(Result.isFailure(laterWrite));
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      );
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql.withTransaction(sql`UPDATE counters SET value = 2 WHERE id = 1`);
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      );
+      assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 2);
+      assert.equal(other.prepare("PRAGMA quick_check").get()?.quick_check, "ok");
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );

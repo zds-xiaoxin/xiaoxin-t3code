@@ -731,7 +731,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
           turn.lastLiveUsedTokens = usedTokens;
           const inputTokens = nonNegativeInteger(usage, "input");
           const cachedInputTokens = nonNegativeInteger(usage, "cacheRead");
-        const cacheCreationTokens = nonNegativeInteger(usage, "cacheWrite");
+          const cacheCreationTokens = nonNegativeInteger(usage, "cacheWrite");
           const outputTokens = nonNegativeInteger(usage, "output");
           const updatedAt = yield* DateTime.now;
           yield* emit({
@@ -745,7 +745,7 @@ export const makePiAdapterV2 = Effect.fn("makePiAdapterV2")(function* (
                 maxTokens: contextWindow,
                 ...(inputTokens === undefined ? {} : { inputTokens }),
                 ...(cachedInputTokens === undefined ? {} : { cachedInputTokens }),
-          ...(cacheCreationTokens === undefined ? {} : { cacheCreationTokens }),
+                ...(cacheCreationTokens === undefined ? {} : { cacheCreationTokens }),
                 ...(outputTokens === undefined ? {} : { outputTokens }),
                 updatedAt: DateTime.formatIso(updatedAt),
               },

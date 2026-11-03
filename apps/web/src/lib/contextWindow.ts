@@ -179,7 +179,7 @@ export function deriveLatestContextWindowSnapshot(
 
 export function formatContextWindowTokens(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
-    return "—";
+    return "?";
   }
   if (value < 1_000) {
     return `${Math.round(value)}`;

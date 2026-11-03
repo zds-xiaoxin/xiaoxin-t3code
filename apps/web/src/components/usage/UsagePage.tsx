@@ -1030,8 +1030,8 @@ function UsageOverview({
                           {project.kind === "project"
                             ? project.title
                             : project.kind === "unlinked"
-                              ? "Not in a T3 thread"
-                              : "Not reported by this server"}
+                              ? uiText("Not in a T3 thread")
+                              : uiText("Not reported by this server")}
                         </span>
                         {project.kind === "project" && selectedEnvironments.length > 1 ? (
                           <span className="ml-1.5 text-xs">{project.environmentLabel}</span>
@@ -1047,7 +1047,7 @@ function UsageOverview({
                       </td>
                       <td className="py-2.5 pl-6 text-foreground">
                         {costUnknown ? (
-                          <span className="text-muted-foreground">Unpriced</span>
+                          <span className="text-muted-foreground">{uiText("Unpriced")}</span>
                         ) : (
                           formatUsd(project.costUsd)
                         )}
