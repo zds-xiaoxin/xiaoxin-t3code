@@ -7,6 +7,7 @@ import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
+import * as Result from "effect/Result";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as Statement from "effect/sql/Statement";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
@@ -168,30 +169,32 @@ const makeTempDatabase = Effect.gen(function* () {
   return { filename, other };
 });
 
-it.effect("keeps another connection from committing between a transaction's read and write", () =>
-  Effect.gen(function* () {
-    const { filename, other } = yield* makeTempDatabase;
-    yield* Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
-      yield* sql.withTransaction(
-        Effect.gen(function* () {
-          const [row] = yield* sql<{ readonly value: number }>`
+it.effect.each([{ writerWorker: false }, { writerWorker: true }])(
+  "keeps another connection from committing between a transaction's read and write (writerWorker=$writerWorker)",
+  ({ writerWorker }) =>
+    Effect.gen(function* () {
+      const { filename, other } = yield* makeTempDatabase;
+      yield* Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql.withTransaction(
+          Effect.gen(function* () {
+            const [row] = yield* sql<{ readonly value: number }>`
             SELECT value FROM counters WHERE id = 1
           `;
-          // Deferred BEGIN permits a competing commit, causing SQLITE_BUSY_SNAPSHOT that no timeout can resolve.
-          yield* Effect.sync(() =>
-            assert.throws(
-              () => other.exec("UPDATE counters SET value = value + 1 WHERE id = 1"),
-              /database is locked/,
-            ),
-          );
-          yield* sql`UPDATE counters SET value = ${(row?.value ?? 0) + 10} WHERE id = 1`;
-        }),
-      );
-      yield* Effect.sync(() => other.exec("UPDATE counters SET value = value + 1 WHERE id = 1"));
-      assert.deepEqual(yield* sql`SELECT value FROM counters WHERE id = 1`.values, [[11]]);
-    }).pipe(Effect.provide(SqliteClient.layer({ filename })));
-  }).pipe(Effect.provide(NodeServices.layer)),
+            // Deferred BEGIN permits a competing commit, causing SQLITE_BUSY_SNAPSHOT that no timeout can resolve.
+            yield* Effect.sync(() =>
+              assert.throws(
+                () => other.exec("UPDATE counters SET value = value + 1 WHERE id = 1"),
+                /database is locked/,
+              ),
+            );
+            yield* sql`UPDATE counters SET value = ${(row?.value ?? 0) + 10} WHERE id = 1`;
+          }),
+        );
+        yield* Effect.sync(() => other.exec("UPDATE counters SET value = value + 1 WHERE id = 1"));
+        assert.deepEqual(yield* sql`SELECT value FROM counters WHERE id = 1`.values, [[11]]);
+      }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker })));
+    }).pipe(Effect.provide(NodeServices.layer)),
 );
 
 it.effect("waits for another process's lock while the database opens", () =>
@@ -222,21 +225,41 @@ it.effect("waits for another process's lock while the database opens", () =>
   }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );
 
-it.effect("reports a transaction blocked by another writer as a lock timeout", () =>
+it.effect.each([{ writerWorker: false }, { writerWorker: true }])(
+  "reports a transaction blocked by another writer as a lock timeout (writerWorker=$writerWorker)",
+  ({ writerWorker }) =>
+    Effect.gen(function* () {
+      const { filename, other } = yield* makeTempDatabase;
+      yield* Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        yield* sql`PRAGMA busy_timeout = 0`;
+        const read = sql.withTransaction(sql`SELECT value FROM counters WHERE id = 1`.values);
+
+        yield* Effect.sync(() => other.exec("BEGIN IMMEDIATE"));
+        const error = yield* read.pipe(Effect.flip);
+        assert.equal(error.reason._tag, "LockTimeoutError");
+
+        yield* Effect.sync(() => other.exec("COMMIT"));
+        assert.deepEqual(yield* read, [[0]]);
+      }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker })));
+    }).pipe(Effect.provide(NodeServices.layer)),
+);
+
+it.effect("keeps the event loop free while a write waits on another connection's lock", () =>
   Effect.gen(function* () {
     const { filename, other } = yield* makeTempDatabase;
     yield* Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient;
-      yield* sql`PRAGMA busy_timeout = 0`;
-      const read = sql.withTransaction(sql`SELECT value FROM counters WHERE id = 1`.values);
-
       yield* Effect.sync(() => other.exec("BEGIN IMMEDIATE"));
-      const error = yield* read.pipe(Effect.flip);
-      assert.equal(error.reason._tag, "LockTimeoutError");
-
-      yield* Effect.sync(() => other.exec("COMMIT"));
-      assert.deepEqual(yield* read, [[0]]);
-    }).pipe(Effect.provide(SqliteClient.layer({ filename })));
+      const write = yield* Effect.forkChild(
+        sql`UPDATE counters SET value = value + 1 WHERE id = 1`,
+        { startImmediately: true },
+      );
+      // A writer on this thread would spin in busy_timeout, so the holder could never commit.
+      yield* Effect.sync(() => other.exec("UPDATE counters SET value = 10 WHERE id = 1; COMMIT"));
+      yield* Fiber.join(write);
+      assert.deepEqual(yield* sql`SELECT value FROM counters WHERE id = 1`.values, [[11]]);
+    }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true })));
   }).pipe(Effect.provide(NodeServices.layer)),
 );
 
@@ -490,4 +513,62 @@ it.effect.each([
         masked ? [[1], [2]] : [[2]],
       );
     }).pipe(Effect.provide(SqliteClient.layer({ filename: ":memory:" }))),
+);
+
+it.effect("falls back to the main writer when the worker cannot start", () =>
+  Effect.gen(function* () {
+    const { filename, other } = yield* makeTempDatabase;
+    yield* Effect.acquireUseRelease(
+      Effect.sync(() => {
+        failingWorkers.message = "synthetic startup failure";
+      }),
+      () =>
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql.withTransaction(sql`UPDATE counters SET value = 7 WHERE id = 1`);
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      () =>
+        Effect.sync(() => {
+          failingWorkers.message = undefined;
+        }),
+    );
+    assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 7);
+  }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
+);
+
+it.effect(
+  "rolls back a crashed writer transaction and preserves committed data after restart",
+  () =>
+    Effect.gen(function* () {
+      const { filename, other } = yield* makeTempDatabase;
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql`UPDATE counters SET value = 1 WHERE id = 1`;
+          const result = yield* sql
+            .withTransaction(
+              Effect.gen(function* () {
+                yield* sql`UPDATE counters SET value = 99 WHERE id = 1`;
+                yield* Effect.promise(() => startedWorkers.at(-1)!.terminate());
+                yield* sql`UPDATE counters SET value = 100 WHERE id = 1`;
+              }),
+            )
+            .pipe(Effect.result);
+          assert.isTrue(Result.isFailure(result));
+          assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 1);
+          const laterWrite = yield* sql`UPDATE counters SET value = 2 WHERE id = 1`.pipe(
+            Effect.result,
+          );
+          assert.isTrue(Result.isFailure(laterWrite));
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      );
+      yield* Effect.scoped(
+        Effect.gen(function* () {
+          const sql = yield* SqlClient.SqlClient;
+          yield* sql.withTransaction(sql`UPDATE counters SET value = 2 WHERE id = 1`);
+        }).pipe(Effect.provide(SqliteClient.layer({ filename, writerWorker: true }))),
+      );
+      assert.equal(other.prepare("SELECT value FROM counters WHERE id = 1").get()?.value, 2);
+      assert.equal(other.prepare("PRAGMA quick_check").get()?.quick_check, "ok");
+    }).pipe(Effect.scoped, Effect.provide(NodeServices.layer)),
 );

@@ -8,6 +8,7 @@ import {
   workEntryIndicatesToolFailure,
   workEntryDisplayIndicatesToolFailure,
   contextCompactionLabel,
+  toolGroupAction,
 } from "./presentation.js";
 function commandItem(
   fields: Partial<
@@ -104,7 +105,16 @@ describe("workEntryIndicatesToolFailure", () => {
     } satisfies WorkLogPresentationEntry;
     expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
     expect(workEntryIndicatesToolFailure(entry)).toBe(true);
-    expect(workEntryDisplayIndicatesToolFailure({ ...entry, detail: "File not found" })).toBe(true);
+    expect(toolGroupAction(entry)).toBe("command");
+    const updated = {
+      ...entry,
+      detail: "File not found",
+      requestKind: "file-read" as const,
+    };
+    expect(workEntryDisplayIndicatesToolFailure(updated)).toBe(true);
+    expect(toolGroupAction(updated)).toBe("read");
+    expect(workEntryDisplayIndicatesToolFailure(entry)).toBe(false);
+    expect(toolGroupAction(entry)).toBe("command");
   });
 });
 describe("resolveWorkEntryToolPresentation", () => {

@@ -40,15 +40,15 @@
     },
     {
       "id": "context",
-      "image": "assets/community/c28/03-context.png",
-      "kind": "component-preview",
-      "source": "Existing C27 component preview retained with C28; synthetic values and surrounding preview frame"
+      "image": "assets/community/c36/context-cache-mac.png",
+      "kind": "isolated-runtime",
+      "source": "C36 macOS candidate compiled web UI served by the native packaged backend; synthetic replay and projection counters; not account usage or measured savings"
     },
     {
       "id": "models",
-      "image": "assets/community/c28/04-model-picker.png",
-      "kind": "component-preview",
-      "source": "Existing source-component preview; example model catalog"
+      "image": "assets/community/c36/compact-model-picker-mac.png",
+      "kind": "isolated-runtime",
+      "source": "C36 macOS candidate compiled web UI served by the native packaged backend; free replay model catalog; separate parameter menu"
     },
     {
       "id": "usage",

@@ -3542,7 +3542,12 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Select an environment to see and change its model prices.": "选择一个环境以查看和修改模型价格。",
   "Model ID": "模型 ID",
   "Cache read": "缓存读取",
+  "Not in a T3 thread": "未关联 T3 会话",
+  "Not reported by this server": "此服务器未提供项目归属",
   "Cache write": "缓存写入",
+  "Reference cost": "参考费用",
+  "Reference cost is not subscription usage. A zero can also mean unreported cost.":
+    "参考费用不等于订阅额度；零值也可能表示费用未上报。",
   "Add model price": "添加模型价格",
   "Some environment prices are unavailable.": "部分环境的价格不可用。",
   "No custom prices. Add a row to override automatic pricing.":

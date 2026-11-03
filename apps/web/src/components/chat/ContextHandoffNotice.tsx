@@ -1,3 +1,4 @@
+import { ContextTokenDetails } from "./ContextTokenDetails";
 import type { ThreadStructure } from "@t3tools/client-runtime/state/shell";
 import { latestContextUsage } from "./contextUsage";
 import type { EnvironmentId } from "@t3tools/contracts";
@@ -438,6 +439,7 @@ export function ContextHandoffNotice({
                 </span>
               ) : null}
             </div>
+            {usage ? <ContextTokenDetails usage={usage} /> : null}
             {disconnected ? <p className="text-warning">连接中断，数据可能过期</p> : null}
           </div>
           {pendingSubtasks > 0 ? (

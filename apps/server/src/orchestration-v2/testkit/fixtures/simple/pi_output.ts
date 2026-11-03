@@ -47,6 +47,7 @@ export function assertPiSettledTokenUsage(
       maxTokens: field(contextUsage, "contextWindow"),
       inputTokens: field(tokens, "input"),
       cachedInputTokens: field(tokens, "cacheRead"),
+      cacheCreationTokens: field(tokens, "cacheWrite"),
       outputTokens: field(tokens, "output"),
     });
   }

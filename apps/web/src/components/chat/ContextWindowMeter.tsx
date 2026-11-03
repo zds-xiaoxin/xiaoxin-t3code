@@ -1,3 +1,4 @@
+import { ContextTokenDetails } from "./ContextTokenDetails";
 import { uiText } from "~/i18n";
 import { Button } from "../ui/button";
 import { type ContextWindowSnapshot, formatContextWindowTokens } from "~/lib/contextWindow";
@@ -141,12 +142,20 @@ export function ContextWindowMeter(props: {
               </span>
             </div>
           ) : null}
+          <ContextTokenDetails usage={usage} />
           {usage.cost != null ? (
             <div className="flex items-center justify-between gap-3 text-2xs leading-4">
-              <span className="text-secondary-label">{uiText("Cost")}</span>
+              <span className="text-secondary-label">{uiText("Reference cost")}</span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowCost(usage.cost)}
               </span>
+            </div>
+          ) : null}
+          {usage.cost != null ? (
+            <div className="text-pretty text-secondary-label text-2xs">
+              {uiText(
+                "Reference cost is not subscription usage. A zero can also mean unreported cost.",
+              )}
             </div>
           ) : null}
           {usage.compactsAutomatically ? (

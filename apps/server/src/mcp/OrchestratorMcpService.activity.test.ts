@@ -239,13 +239,14 @@ it("readThread pages cut-off text without splitting an emoji across pages", asyn
     },
   };
 
+  let rows = [row] as unknown as OrchestrationV2ThreadProjection["visibleTurnItems"];
   const layer = layerOrchestratorService.pipe(
     Layer.provide(
       Layer.mergeAll(
         Layer.mock(ThreadManagementService.ThreadManagementService)({
           getTimelinePage: () =>
             Effect.succeed({
-              items: [row] as unknown as OrchestrationV2ThreadProjection["visibleTurnItems"],
+              items: rows,
               totalItems: 1,
               hasMore: false,
             }),
@@ -294,6 +295,21 @@ it("readThread pages cut-off text without splitting an emoji across pages", asyn
           nextTextOffset: index < expected.length - 1 ? textOffset : null,
         });
       }
+    }
+    for (const exitCode of [0, 2]) {
+      rows = [
+        {
+          ...row,
+          item: { ...row.item, type: "command_execution", input: "npm test", output: "", exitCode },
+        },
+      ] as unknown as OrchestrationV2ThreadProjection["visibleTurnItems"];
+      const result = yield* service.readThread(makeScope(), {
+        threadId: parentThreadId,
+        view: "activity",
+        itemId,
+        maxCharsPerItem: 100,
+      });
+      expect(result.items[0]?.text).toBe(`[exit code: ${exitCode}]\n$ npm test\n`);
     }
   }).pipe(Effect.provide(layer), Effect.runPromise);
 });
