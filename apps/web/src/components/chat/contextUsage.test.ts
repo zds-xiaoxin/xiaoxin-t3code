@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
+import * as DateTime from "effect/DateTime";
 import { ProviderThreadId } from "@t3tools/contracts";
 import { latestContextUsage } from "./contextUsage";
 
@@ -25,6 +26,19 @@ describe("active provider context", () => {
         providerTurns: [{ providerThreadId: other, tokenUsage: usage }],
       }),
     ).toBeNull();
+    expect(
+      latestContextUsage({
+        thread: { activeProviderThreadId: active },
+        providerTurns: [],
+        providerThreads: [
+          {
+            id: other,
+            contextUsage: { usedTokens: 190_000 },
+            updatedAt: DateTime.makeUnsafe("2026-10-11T03:00:00Z"),
+          },
+        ],
+      }),
+    ).toBeNull();
     expect(latestContextUsage(null)).toBeNull();
   });
   it("accepts an explicit zero report after compaction", () => {
@@ -38,6 +52,29 @@ describe("active provider context", () => {
         ],
       }),
     ).toBe(zero);
+    for (const usedTokens of [0, 24_000]) {
+      const contextUsage = {
+        usedTokens,
+        maxTokens: 200_000,
+        inputTokens: 18_000,
+        cachedInputTokens: 12_000,
+        cacheCreationTokens: 3_000,
+        outputTokens: 6_000,
+      };
+      expect(
+        latestContextUsage({
+          thread: { activeProviderThreadId: active },
+          providerTurns: [{ providerThreadId: other, tokenUsage: usage }],
+          providerThreads: [
+            {
+              id: active,
+              contextUsage,
+              updatedAt: DateTime.makeUnsafe("2026-10-11T03:00:00Z"),
+            },
+          ],
+        }),
+      ).toEqual({ ...contextUsage, updatedAt: "2026-10-11T03:00:00.000Z" });
+    }
   });
   it("selects the newest active-session report even when snapshots reorder turns", () => {
     const latest = { ...usage, usedTokens: 90_000, updatedAt: "2026-10-11T02:00:00Z" };
