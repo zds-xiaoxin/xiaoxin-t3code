@@ -5,10 +5,10 @@ export function ContextTokenDetails({
   usage,
 }: {
   usage: {
-    readonly inputTokens?: number | null;
-    readonly outputTokens?: number | null;
-    readonly cachedInputTokens?: number | null;
-    readonly cacheCreationTokens?: number | null;
+    readonly inputTokens?: number | null | undefined;
+    readonly outputTokens?: number | null | undefined;
+    readonly cachedInputTokens?: number | null | undefined;
+    readonly cacheCreationTokens?: number | null | undefined;
   };
 }) {
   const details = [
