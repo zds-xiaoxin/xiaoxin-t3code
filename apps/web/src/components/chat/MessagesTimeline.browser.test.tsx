@@ -242,14 +242,17 @@ describe("MessagesTimeline work rows", () => {
       expect(viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop).toBeLessThan(2),
     );
     expect(viewport.scrollTop).toBeGreaterThan(0);
-    const top = heading.element().getBoundingClientRect().top;
+    // Clicking may scroll the test page; only the heading's position inside the list is fixed.
+    const headingTop = () =>
+      heading.element().getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+    const top = headingTop();
     const height = viewport.scrollHeight;
     using _timers = fakeTimers();
     await heading.click();
     await act(() => vi.advanceTimersByTime(1000));
     await vi.waitFor(() => {
       expect(viewport.scrollHeight).toBeGreaterThan(height + 500);
-      expect(heading.element().getBoundingClientRect().top).toBeCloseTo(top, 0);
+      expect(headingTop()).toBeCloseTo(top, 0);
       expect(viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop).toBeGreaterThan(
         500,
       );

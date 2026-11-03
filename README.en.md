@@ -52,11 +52,11 @@ _Windows feature-layout concept using synthetic illustrations; it does not prove
 
 ### Long-conversation context
 
-Keep context usage and continuation actions compact, with runtime details available when needed.
+Inspect context occupancy, input/output, and cache reads/writes for the active session. Missing counters show ?, while reported zeros remain 0. Continue in a new conversation when needed.
 
-![Compact context panel and continuation actions](assets/community/c28/03-context.png)
+![Compact context panel and continuation actions](assets/community/c36/context-cache-mac.png)
 
-_Existing source-component preview with fixture data and a surrounding preview frame._
+_Compiled C36 Mac candidate UI served by its isolated native backend. Context and cache values are synthetic visual fixtures, not account usage or measured savings._
 
 <!-- showcase:models -->
 
@@ -64,9 +64,9 @@ _Existing source-component preview with fixture data and a surrounding preview f
 
 Search, favorite and switch models without a permanent default-settings footer.
 
-![Model search, favorites and compact selection](assets/community/c28/04-model-picker.png)
+![Model search, favorites and compact selection](assets/community/c36/compact-model-picker-mac.png)
 
-_Existing source-component preview; available models depend on the configured provider._
+_Compiled C36 Mac candidate UI with the free replay provider. Model parameters open separately; available models depend on the configured provider._
 
 <!-- showcase:usage -->
 
