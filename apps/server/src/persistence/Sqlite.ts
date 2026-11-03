@@ -1,4 +1,5 @@
 import * as Effect from "effect/Effect";
+import * as Config from "effect/Config";
 import * as Layer from "effect/Layer";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -47,6 +48,9 @@ const layerSetup = Layer.effectDiscard(
 export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (dbPath: string) {
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
+  const writerWorker = yield* Config.Boolean("T3CODE_SQLITE_WRITER_WORKER").pipe(
+    Config.withDefault(true),
+  );
   yield* fs.makeDirectory(path.dirname(dbPath), { recursive: true });
 
   return Layer.provideMerge(
@@ -66,7 +70,7 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
       filename: dbPath,
       readerWorker: true,
       // Run writes off the event loop so slow statements and transactions cannot stall clients.
-      writerWorker: true,
+      writerWorker,
       // Keeps checkpoint fsyncs off the event loop if the writer has to fall back to the main thread.
       checkpointWorker: true,
       spanAttributes: {

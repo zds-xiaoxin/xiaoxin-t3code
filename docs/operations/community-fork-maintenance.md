@@ -17,3 +17,15 @@ Finish an accepted upgrade by merging its validated source into `main` and check
 Fork pull requests use standard GitHub-hosted Ubuntu and macOS runners; the official repository keeps its Blacksmith runners. Keep the same checks and final `Check` gate. Public repository use of standard hosted runners is free; recheck pricing before making the repository private or selecting larger runners.
 
 Install only after the storage guard passes and the candidate is verified. Wait for the existing task/input idle gates, take the protected cold backup, and verify the program, data, authentication and configuration after replacement. A program rollback never restores an old database over new conversations.
+
+## SQLite writer compatibility mode
+
+File-backed databases use a worker for writes. If that worker fails after startup,
+restart T3 Code with `T3CODE_SQLITE_WRITER_WORKER=false` to use the main-thread
+writer and the existing checkpoint worker. Wait for running tasks to finish before
+restarting. This changes scheduling, retains the current schema and data, and may
+increase event-loop stalls. Unset the variable to restore worker writes.
+
+Do not replace a migrated database with an older backup or open it in an older
+app as a way to disable this optimization. Keep the matching app and data backup
+for a full rollback.
