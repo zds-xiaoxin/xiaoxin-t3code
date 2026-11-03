@@ -309,6 +309,12 @@ export const SETTINGS_SEARCH_ITEMS = [
     targetId: "appearance",
   },
   {
+    id: "interface-style",
+    title: "Interface style",
+    to: "/settings/appearance",
+    searchTerms: ["macOS Mac Apple current standard appearance 界面 风格 苹果 毛玻璃"],
+  },
+  {
     // Prefixed because the slider control already owns the `appearance-contrast` id.
     id: "setting-appearance-contrast",
     title: "Contrast",

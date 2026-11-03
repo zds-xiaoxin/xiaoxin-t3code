@@ -551,12 +551,23 @@ describe("sidebar appearance settings", () => {
     const legacy = { fontFamilySans: "Menlo", fontSizeInterface: 18, wordWrap: false };
     expect(decodeClientSettings(legacy)).toMatchObject({
       ...legacy,
+      interfaceStyle: "standard",
       fontFamilySidebar: "",
       fontSizeSidebar: 0,
       sidebarTextColorLight: "default",
       sidebarTextColorDark: "default",
     });
   });
+  it.each(["standard", "macos"] as const)(
+    "round-trips the %s interface style",
+    (interfaceStyle) => {
+      const patch = { interfaceStyle };
+      expect(decodeClientSettingsPatch(patch)).toEqual(patch);
+      const settings = decodeClientSettings(patch);
+      expect(decodeClientSettings(encodeClientSettings(settings))).toEqual(settings);
+      expect(() => decodeClientSettingsPatch({ interfaceStyle: "unsupported" })).toThrow();
+    },
+  );
   it("round-trips sidebar values through the storage schema and patch contract", () => {
     const patch = {
       fontFamilySidebar: "Menlo",

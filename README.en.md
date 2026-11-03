@@ -1,8 +1,12 @@
 # Xiaoxin T3 Code · Community Edition
 
+**New Mac preview: C37 · two interface styles.** Switch Current style / macOS style in Appearance → Interface. Based on the 0.1.7 nightly core, for Apple Silicon Mac testing.
+
+[Download C37 preview](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) · [Installation and validation scope](docs/community/c37/RELEASE.en.md)
+
 **Current recommended Mac release: C31.** Includes recovery for invisible replies in newly created threads, a stuck Run inspector and the false disconnection state of blank drafts, while retaining the customized workbench features.
 
-[Download the recommended release · macOS Apple Silicon](https://github.com/labixiaoxins/xiaoxin-t3code/releases/latest) · [C31 notes and known limitations](docs/community/c31/RELEASE.en.md) · [简体中文](README.md)
+[Download the recommended release · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [C31 notes and known limitations](docs/community/c31/RELEASE.en.md) · [简体中文](README.md)
 
 The default development branch is `main`. C31 is this community fork's release number; its embedded official version remains 0.1.5. It is not a new upstream T3 version.
 
@@ -100,14 +104,17 @@ _Previously published C30 isolated-runtime settings screenshot._
 
 ## Download and use
 
-- **Apple Silicon Mac:** download `Xiaoxin-T3-Code-C31-macOS-arm64.zip` from the recommended release and verify its SHA-256.
-- **Windows x64:** [C31-W1 test release](https://github.com/labixiaoxins/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows source and concepts](https://github.com/labixiaoxins/xiaoxin-t3code/tree/community/windows-c31-w1). Windows testing and the recommended Mac release are published separately.
+- **C37 Mac preview:** [Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) and [C37 installation notes](docs/community/c37/RELEASE.en.md). Updates are manual. Do not open data already upgraded by C37 with C31.
+- **Previous stable C31 · Apple Silicon Mac:** download `Xiaoxin-T3-Code-C31-macOS-arm64.zip` from the recommended release and verify its SHA-256.
+- **Windows x64:** [C31-W1 test release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows source and concepts](https://github.com/zds-xiaoxin/xiaoxin-t3code/tree/community/windows-c31-w1). Windows testing and the recommended Mac release are published separately.
 - Finish tasks and quit T3 before replacing the Mac application. Retain the previous application for rollback and preserve chats, authentication and configuration. Users supply their own provider CLIs and authentication.
 - The Mac application is ad-hoc signed and not Apple-notarized. See the release notes for supported platforms, installation and verification limits.
 
 ## Verification and known issues
 
-The application's files match the maintainer's installed C31 byte for byte. That same application passed real Mac first/second-turn reply visibility without refresh and readback of a formerly failed thread. The distribution additionally passed isolated startup, signature, ZIP integrity and member-hash checks.
+See [C37 validation notes](docs/community/c37/RELEASE.en.md) for its styles, packaging and acceptance scope; strict idle CPU acceptance remains unconfirmed.
+
+The following evidence applies only to the previous stable C31: its files matched the maintainer's then-installed C31 byte for byte. That same application passed real Mac first/second-turn reply visibility without refresh and readback of a formerly failed thread. The distribution additionally passed isolated startup, signature, ZIP integrity and member-hash checks.
 
 233 focused tests,20 React Compiler checks and typechecks for7 packages passed. Formatting, lint and knip findings remain documented in the C31 notes. Recommended release status does not establish every-provider, every-size or universal scenario coverage.
 
@@ -115,4 +122,4 @@ The application's files match the maintainer's installed C31 byte for byte. That
 
 Older releases remain available for history and rollback. Use the recommended download above for everyday use.
 
-[All releases](https://github.com/labixiaoxins/xiaoxin-t3code/releases) · [C30 notes](docs/community/c30/RELEASE.en.md) · [C29 notes](docs/community/c29/RELEASE.en.md) · [C28 notes](docs/community/C28.en.md) · [Upstream T3 Code](https://github.com/pingdotgg/t3code)
+[All releases](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases) · [C30 notes](docs/community/c30/RELEASE.en.md) · [C29 notes](docs/community/c29/RELEASE.en.md) · [C28 notes](docs/community/C28.en.md) · [Upstream T3 Code](https://github.com/pingdotgg/t3code)

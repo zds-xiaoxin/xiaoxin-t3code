@@ -7,6 +7,7 @@ import {
   type ChatWidth,
   type EffortDisplay,
   type EnvironmentIdentificationMode,
+  type InterfaceStyle,
   MAX_APPEARANCE_CONTRAST,
   MAX_GLASS_OPACITY,
   MAX_PANEL_ANIMATION_DURATION_MS,
@@ -73,6 +74,11 @@ function environmentIdentificationOptions(
     ["dev-artwork", "Dev artwork"],
   ];
 }
+
+const INTERFACE_STYLE_LABELS: Record<InterfaceStyle, string> = {
+  standard: uiText("Current style"),
+  macos: uiText("macOS style"),
+};
 
 const CHAT_WIDTH_LABELS: Record<ChatWidth, string> = {
   comfortable: uiText("Comfortable"),
@@ -162,6 +168,44 @@ export function AppearanceSettingsPanel() {
         </div>
       </SettingsSection>
       <SettingsSection id="appearance-interface" title={uiText("Interface")}>
+        <SettingsRow
+          {...searchableSetting("interface-style")}
+          description={uiText(
+            "Switch instantly without changing your colors, fonts, or sidebar preferences.",
+          )}
+          resetAction={
+            settings.interfaceStyle !== DEFAULT_UNIFIED_SETTINGS.interfaceStyle ? (
+              <SettingResetButton
+                label={uiText("interface style")}
+                onClick={() =>
+                  updateSettings({ interfaceStyle: DEFAULT_UNIFIED_SETTINGS.interfaceStyle })
+                }
+              />
+            ) : null
+          }
+          control={
+            <Select
+              value={settings.interfaceStyle}
+              onValueChange={(interfaceStyle) => {
+                if (interfaceStyle === "standard" || interfaceStyle === "macos") {
+                  updateSettings({ interfaceStyle });
+                }
+              }}
+            >
+              <SelectTrigger
+                size="sm"
+                className="w-full sm:w-40"
+                aria-label={uiText("Interface style")}
+              >
+                <SelectValue>{INTERFACE_STYLE_LABELS[settings.interfaceStyle]}</SelectValue>
+              </SelectTrigger>
+              <SelectPopup align="end" alignItemWithTrigger={false}>
+                <SelectItem value="standard">{INTERFACE_STYLE_LABELS.standard}</SelectItem>
+                <SelectItem value="macos">{INTERFACE_STYLE_LABELS.macos}</SelectItem>
+              </SelectPopup>
+            </Select>
+          }
+        />
         <SettingsRow
           {...searchableSetting("setting-appearance-contrast")}
           description={uiText("Adjust the contrast of colors and borders across the interface.")}

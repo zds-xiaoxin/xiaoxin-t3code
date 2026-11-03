@@ -128,6 +128,10 @@ export const DEFAULT_SNOOZE_PRESETS: ReadonlyArray<SnoozePresetSetting> = [
   { kind: "at", day: "monday", time: "09:00" },
 ];
 
+export const InterfaceStyle = Schema.Literals(["standard", "macos"]);
+export type InterfaceStyle = typeof InterfaceStyle.Type;
+const DEFAULT_INTERFACE_STYLE: InterfaceStyle = "standard";
+
 export const MIN_GLASS_OPACITY = 40;
 export const MAX_GLASS_OPACITY = 100;
 export const GlassOpacity = Schema.Int.check(
@@ -355,6 +359,9 @@ export const ClientSettingsSchema = Schema.Struct({
   effortDisplay: EffortDisplay.pipe(Schema.withDecodingDefault(Effect.succeed("label" as const))),
   loadBalancingEnabled: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   loadBalancingWeights: LoadBalancingWeights.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
+  interfaceStyle: InterfaceStyle.pipe(
+    Schema.withDecodingDefault(Effect.succeed(DEFAULT_INTERFACE_STYLE)),
+  ),
   appearanceContrast: AppearanceContrast.pipe(
     Schema.withDecodingDefault(Effect.succeed(DEFAULT_APPEARANCE_CONTRAST)),
   ),
@@ -1718,6 +1725,7 @@ export const ClientSettingsPatch = Schema.Struct({
   effortDisplay: Schema.optionalKey(EffortDisplay),
   loadBalancingEnabled: Schema.optionalKey(Schema.Boolean),
   loadBalancingWeights: Schema.optionalKey(LoadBalancingWeights),
+  interfaceStyle: Schema.optionalKey(InterfaceStyle),
   appearanceContrast: Schema.optionalKey(AppearanceContrast),
   panelAnimationDurationMs: Schema.optionalKey(PanelAnimationDurationMs),
   browserDefaultViewport: Schema.optionalKey(PreviewViewportSetting),

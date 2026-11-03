@@ -167,6 +167,27 @@ describe("client settings hydration", () => {
 });
 
 describe("persistClientSettingsPatch", () => {
+  it("switches both interface styles and restores the choice without changing other preferences", async () => {
+    const saved = {
+      ...DEFAULT_CLIENT_SETTINGS,
+      fontSizePrompt: 18,
+      glassOpacity: 100,
+      environmentIdentificationMode: "none" as const,
+      sidebarProjectGroupingMode: "repository_path" as const,
+      onboardingCompletedAt: "2026-11-03T12:00:00.000Z",
+    };
+    persistenceMocks.getClientSettings.mockResolvedValueOnce(saved);
+    await ensureClientSettingsHydrated();
+    for (const interfaceStyle of ["macos", "standard"] as const) {
+      await persistClientSettingsPatch({ interfaceStyle });
+      const written = persistenceMocks.setClientSettings.mock.calls.at(-1)![0];
+      expect(written).toEqual({ ...saved, interfaceStyle });
+      __resetClientSettingsPersistenceForTests();
+      persistenceMocks.getClientSettings.mockResolvedValueOnce(written);
+      await ensureClientSettingsHydrated();
+      expect(getClientSettings()).toEqual({ ...saved, interfaceStyle });
+    }
+  });
   it("restores the image revision choice after rehydration without changing other preferences", async () => {
     const saved = {
       ...DEFAULT_CLIENT_SETTINGS,

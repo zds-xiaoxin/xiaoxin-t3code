@@ -438,6 +438,9 @@ export function useSettingsRestore(onRestored?: () => void) {
     ...(theme !== "system" ? ["Theme"] : []),
     ...(!followSystem ? ["Follow system"] : []),
     ...(themeHalves !== null ? ["Theme mix"] : []),
+    ...(settings.interfaceStyle !== DEFAULT_UNIFIED_SETTINGS.interfaceStyle
+      ? [uiText("Interface style")]
+      : []),
     ...(settings.appearanceContrast !== DEFAULT_UNIFIED_SETTINGS.appearanceContrast
       ? [uiText("Contrast")]
       : []),
@@ -624,6 +627,7 @@ export function useSettingsRestore(onRestored?: () => void) {
       return;
     }
     updateSettings({
+      interfaceStyle: DEFAULT_UNIFIED_SETTINGS.interfaceStyle,
       appearanceContrast: DEFAULT_UNIFIED_SETTINGS.appearanceContrast,
       diffColorScheme: DEFAULT_UNIFIED_SETTINGS.diffColorScheme,
       chatWidth: DEFAULT_UNIFIED_SETTINGS.chatWidth,

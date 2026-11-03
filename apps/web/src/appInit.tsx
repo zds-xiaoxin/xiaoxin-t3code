@@ -84,6 +84,9 @@ function startClientAppearance(): void {
     if (previous?.diffColorScheme !== settings.diffColorScheme) {
       root.dataset.diffColorScheme = settings.diffColorScheme;
     }
+    if (previous?.interfaceStyle !== settings.interfaceStyle) {
+      root.dataset.interfaceStyle = settings.interfaceStyle;
+    }
     if (previous?.chatWidth !== settings.chatWidth) {
       root.dataset.chatWidth = settings.chatWidth;
     }

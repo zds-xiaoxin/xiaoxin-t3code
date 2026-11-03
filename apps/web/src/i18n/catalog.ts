@@ -380,6 +380,12 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Color scheme": "配色方案",
   Themes: "主题",
   Contrast: "界面对比度",
+  "Interface style": "界面风格",
+  "interface style": "界面风格",
+  "Current style": "当前风格",
+  "macOS style": "macOS 风格",
+  "Switch instantly without changing your colors, fonts, or sidebar preferences.":
+    "即时切换界面外观，保留配色、字号和侧栏偏好。",
   "Glass opacity": "玻璃效果透明度",
   "Environment identification": "环境标识",
   "Interface font": "界面字体",
