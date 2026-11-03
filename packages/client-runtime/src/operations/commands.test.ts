@@ -581,6 +581,6 @@ describe("V2 environment commands", () => {
             requireIdle: true,
           });
       }
-    }).pipe(Effect.provide(layerTestCrypto)),
+    }).pipe(Effect.provide(layerTestRandom)),
   );
 });
