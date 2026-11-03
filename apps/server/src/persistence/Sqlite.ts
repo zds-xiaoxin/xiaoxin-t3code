@@ -50,6 +50,7 @@ export const layerFromPath = Effect.fn("makeSqlitePersistenceLive")(function* (d
   const path = yield* Path.Path;
   const writerWorker = yield* Config.Boolean("T3CODE_SQLITE_WRITER_WORKER").pipe(
     Config.withDefault(true),
+    Effect.orDie,
   );
   yield* fs.makeDirectory(path.dirname(dbPath), { recursive: true });
 
