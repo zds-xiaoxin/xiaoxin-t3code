@@ -34,6 +34,13 @@ export function ContextWindowMeter(props: {
   const dashOffset = circumference * (1 - normalizedPercentage / 100);
   const totalProcessedTokens = usage.totalProcessedTokens ?? null;
   const showTotalProcessed = totalProcessedTokens !== null && totalProcessedTokens > 0;
+  const tokenDetails: ReadonlyArray<readonly [string, number | null | undefined]> = [
+    [uiText("Input"), usage.inputTokens],
+    [uiText("Output"), usage.outputTokens],
+    [uiText("Cache read"), usage.cachedInputTokens],
+    [uiText("Cache write"), usage.cacheCreationTokens],
+  ];
+  const showTokenDetails = tokenDetails.some(([, value]) => value != null);
   const isOverloaded = normalizedPercentage > 90;
   const usageColor = isOverloaded
     ? "var(--color-error)"
@@ -141,12 +148,29 @@ export function ContextWindowMeter(props: {
               </span>
             </div>
           ) : null}
+          {showTokenDetails ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-2xs leading-4">
+              {tokenDetails.map(([label, value]) => (
+                <div key={label} className="flex items-center justify-between gap-2">
+                  <span className="text-secondary-label">{label}</span>
+                  <span className="font-medium tabular-nums text-secondary-label">
+                    {formatContextWindowTokens(value ?? null)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
           {usage.cost != null ? (
             <div className="flex items-center justify-between gap-3 text-2xs leading-4">
-              <span className="text-secondary-label">{uiText("Cost")}</span>
+              <span className="text-secondary-label">{uiText("Reference cost")}</span>
               <span className="font-medium tabular-nums text-secondary-label">
                 {formatContextWindowCost(usage.cost)}
               </span>
+            </div>
+          ) : null}
+          {usage.cost != null ? (
+            <div className="text-pretty text-secondary-label text-2xs">
+              {uiText("Reference cost is not subscription usage. A zero can also mean unreported cost.")}
             </div>
           ) : null}
           {usage.compactsAutomatically ? (

@@ -12,11 +12,15 @@ import {
 } from "@t3tools/contracts";
 import { makeThreadProjectionFixture } from "../test-fixtures";
 import { shouldOfferResumeCompaction } from "../components/chat/ContextWindowMeter.logic";
-import { deriveLatestContextWindowSnapshot, latestProviderTurnTokenUsage } from "./contextWindow";
+import { deriveLatestContextWindowSnapshot, latestProviderTurnTokenUsage, formatContextWindowTokens } from "./contextWindow";
 
 const decodeTokenUsage = Schema.decodeSync(OrchestrationV2ProviderTurnTokenUsage);
 
 describe("V2 context window presentation", () => {
+  it.each([[null, "—"], [Number.NaN, "—"], [0, "0"], [1_200, "1.2k"]] as const)(
+    "distinguishes missing token usage from a reported zero: %s",
+    (value, expected) => expect(formatContextWindowTokens(value)).toBe(expected),
+  );
   it("uses retained compaction token data when available", () => {
     const snapshot = deriveLatestContextWindowSnapshot([
       {
@@ -53,6 +57,8 @@ describe("live provider-turn usage (#8144)", () => {
       usedTokens: 42_000,
       maxTokens: 200_000,
       inputTokens: 40_000,
+      cachedInputTokens: 10_000,
+      cacheCreationTokens: 1_000,
       outputTokens: 2_000,
       autoCompactThreshold: 150_000,
       updatedAt: "2026-08-27T00:00:00.000Z",
@@ -60,6 +66,8 @@ describe("live provider-turn usage (#8144)", () => {
     const snapshot = deriveLatestContextWindowSnapshot([], usage);
     expect(snapshot).not.toBeNull();
     expect(snapshot?.usedTokens).toBe(42_000);
+    expect(snapshot?.cachedInputTokens).toBe(10_000);
+    expect(snapshot?.cacheCreationTokens).toBe(1_000);
     expect(snapshot?.maxTokens).toBe(200_000);
     expect(snapshot?.remainingTokens).toBe(158_000);
     expect(snapshot?.usedPercentage).toBe(21);

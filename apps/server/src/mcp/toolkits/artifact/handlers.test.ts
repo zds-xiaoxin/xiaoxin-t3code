@@ -106,7 +106,7 @@ it.effect.each([true, false])(
     }).pipe(
       Effect.provide(
         McpHttpServer.layerArtifactToolkit.pipe(
-          Layer.provideMerge(McpServer.McpServer.layer),
+          Layer.provideMerge(McpHttpServer.layerInProcessMcpServer),
           Layer.provide(services),
         ),
       ),

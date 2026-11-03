@@ -1,4 +1,3 @@
-import * as NodeSqlite from "node:sqlite";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
@@ -27,6 +26,7 @@ import {
   TurnItemId,
 } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as Arr from "effect/Array";
 import * as Clock from "effect/Clock";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -37,6 +37,7 @@ import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Path from "effect/Path";
+import * as Queue from "effect/Queue";
 import * as Ref from "effect/Ref";
 import * as Scheduler from "effect/Scheduler";
 import * as Schema from "effect/Schema";
@@ -45,8 +46,6 @@ import * as TestClock from "effect/testing/TestClock";
 import * as Tracer from "effect/Tracer";
 import * as SqlClient from "effect/sql/SqlClient";
 import * as Statement from "effect/sql/Statement";
-
-import { vi } from "vite-plus/test";
 
 import * as ServerConfig from "../config.ts";
 import * as DatabaseStorage from "../persistence/DatabaseStorage.ts";
@@ -252,46 +251,41 @@ it.effect("discovers on the reader worker and deletes on the writer", () =>
     const path = yield* Path.Path;
     const filename = path.join(yield* fs.makeTempDirectoryScoped(), "fixture.sqlite");
     yield* Effect.gen(function* () {
-      const sql = yield* SqlClient.SqlClient;
       yield* seedCompaction();
-      // Establish the reader before recording main-thread statements.
-      yield* sql`SELECT 1`.pipe(NodeSqliteClient.readOnly);
-      const reads: string[] = [];
-      const writes: string[] = [];
-      const all = NodeSqlite.StatementSync.prototype.all;
-      const run = NodeSqlite.StatementSync.prototype.run;
-      yield* Effect.acquireRelease(
-        Effect.sync(() => {
-          const readSpy = vi
-            .spyOn(NodeSqlite.StatementSync.prototype, "all")
-            .mockImplementation(function (this: NodeSqlite.StatementSync, ...params) {
-              reads.push(this.sourceSQL);
-              return all.apply(this, params);
-            });
-          const writeSpy = vi
-            .spyOn(NodeSqlite.StatementSync.prototype, "run")
-            .mockImplementation(function (this: NodeSqlite.StatementSync, ...params) {
-              writes.push(this.sourceSQL);
-              return run.apply(this, params);
-            });
-          return { readSpy, writeSpy };
-        }),
-        ({ readSpy, writeSpy }) =>
-          Effect.sync(() => {
-            readSpy.mockRestore();
-            writeSpy.mockRestore();
-          }),
-      );
+      const statements: Array<{ readonly query: unknown; readonly connection: unknown }> = [];
+      const tracer = Tracer.make({
+        span(options) {
+          const span = new Tracer.NativeSpan(options);
+          const end = span.end.bind(span);
+          span.end = (time, exit) => {
+            end(time, exit);
+            const query = span.attributes.get("db.query.text");
+            if (query === undefined) return;
+            statements.push({ query, connection: span.attributes.get("db.connection") });
+          };
+          return span;
+        },
+      });
       const maintenance = yield* ProjectionMaintenance.ProjectionMaintenanceV2;
-      const result = yield* maintenance.compactEventStore();
+      const result = yield* maintenance
+        .compactEventStore()
+        .pipe(
+          Effect.withTracer(tracer),
+          Effect.provideService(Statement.SpanPropagationEnabled, true),
+        );
       assert.equal(result.deletedEventCount, 148);
       assert.equal(result.deletedReceiptCount, 100);
+      const connectionsFor = (pattern: RegExp) =>
+        new Set(
+          statements
+            .filter(({ query }) => typeof query === "string" && pattern.test(query))
+            .map(({ connection }) => connection),
+        );
+      assert.deepEqual(connectionsFor(/^\s*(SELECT|WITH)\b/), new Set(["reader"]));
       assert.deepEqual(
-        reads.filter((query) => /\bSELECT\b/.test(query)),
-        [],
+        connectionsFor(/^\s*DELETE FROM orchestration_(events|command_receipts)\b/),
+        new Set(["writer"]),
       );
-      assert(writes.some((query) => query.includes("DELETE FROM orchestration_events")));
-      assert(writes.some((query) => query.includes("DELETE FROM orchestration_command_receipts")));
     }).pipe(
       Effect.provide(
         ProjectionMaintenance.layer.pipe(
@@ -1356,9 +1350,7 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
         rows.push(eventRow(++ordinal, { commandId: exactPageCommandId }));
       }
       const inserted = yield* Effect.forEach(
-        Array.from({ length: Math.ceil(rows.length / 400) }, (_, chunk) =>
-          rows.slice(chunk * 400, (chunk + 1) * 400),
-        ),
+        Arr.chunksOf(rows, 400),
         (chunk) =>
           sql<{
             readonly sequence: number;
@@ -1594,7 +1586,7 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
         })).committed,
       );
       assert.isTrue(Option.isSome(yield* outbox.get(captureEffect.id)));
-      yield* outbox.awaitAvailable;
+      yield* outbox.awaitAvailable();
       const staleCaptureEffect = { ...captureEffect, id: "effect:foundation-stale-capture" };
 
       const reachedPrecommitGap = yield* Deferred.make<void>();
@@ -2193,7 +2185,7 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
       if (Option.isNone(claimed)) return;
       assert.equal(claimed.value.id, "effect:foundation-next-claimable:a1");
 
-      const whileBlocked = yield* outbox.nextClaimableAt;
+      const whileBlocked = yield* outbox.nextClaimableAt();
       assert.isTrue(Option.isSome(whileBlocked));
       if (Option.isSome(whileBlocked)) {
         assert.equal(DateTime.toEpochMillis(whileBlocked.value), DateTime.toEpochMillis(future));
@@ -2203,7 +2195,7 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
         effectId: claimed.value.id,
         workerId: "next-claimable-worker",
       });
-      const afterCompletion = yield* outbox.nextClaimableAt;
+      const afterCompletion = yield* outbox.nextClaimableAt();
       assert.isTrue(Option.isSome(afterCompletion));
       if (Option.isSome(afterCompletion)) {
         assert.isAtMost(DateTime.toEpochMillis(afterCompletion.value), DateTime.toEpochMillis(now));
@@ -2315,9 +2307,13 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
       });
       yield* outbox.signalCancellations(cancelledEffectIds);
 
-      const wake = yield* outbox.awaitAvailable.pipe(Effect.forkChild);
+      const wake = yield* outbox.awaitAvailable().pipe(Effect.forkChild);
+      const nonTitleWake = yield* outbox
+        .awaitAvailable({ excludeTitleGeneration: true })
+        .pipe(Effect.forkChild);
       yield* Effect.yieldNow;
       assert.isDefined(wake.pollUnsafe());
+      assert.isDefined(nonTitleWake.pollUnsafe(), "each claim lane gets its own wakeup");
 
       const unblocked = yield* outbox.claimNext({
         workerId: "cancellation-wakeup-worker",
@@ -2380,7 +2376,7 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
       assert.equal(Option.getOrUndefined(title)?.id, "effect:foundation-retry-order:b-title");
       const blocked = yield* outbox.claimNext({ workerId });
       assert.isTrue(Option.isNone(blocked));
-      const nextClaimable = yield* outbox.nextClaimableAt;
+      const nextClaimable = yield* outbox.nextClaimableAt();
       assert.isTrue(Option.isSome(nextClaimable));
       if (Option.isSome(nextClaimable)) {
         assert.equal(
@@ -2510,6 +2506,175 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
         );
       }).pipe(Effect.provide(layerWorker), Effect.scoped);
     }),
+  );
+
+  it.effect("keeps one worker free for provider starts while titles hold the others", () =>
+    Effect.gen(function* () {
+      const outbox = yield* EffectOutbox.EffectOutboxV2;
+      const key = "foundation-reserved-worker";
+      const commandId = CommandId.make(`command:${key}`);
+      const titleThreads = [0, 1, 2, 3].map((index) =>
+        ThreadId.make(`thread:${key}:title-${index}`),
+      );
+      const providerEffectId = `effect:${key}:provider-start`;
+      const titleStarts = yield* Queue.unbounded<string>();
+      const releaseTitles = yield* Deferred.make<void>();
+      const providerStarted = yield* Deferred.make<void>();
+      const nonTitleClaims = yield* Ref.make(0);
+      const layerExecutor = Layer.succeed(
+        EffectWorker.OrchestrationEffectExecutorV2,
+        EffectWorker.OrchestrationEffectExecutorV2.of({
+          execute: (effect) =>
+            effect.request.type === "thread-title.generate"
+              ? Queue.offer(titleStarts, effect.id).pipe(
+                  Effect.andThen(Deferred.await(releaseTitles)),
+                )
+              : Deferred.succeed(providerStarted, undefined),
+        }),
+      );
+      const layerWorker = EffectWorker.layerWithOptions({ workerId: `${key}-worker` }).pipe(
+        Layer.provide(
+          Layer.merge(
+            Layer.succeed(EffectOutbox.EffectOutboxV2, {
+              ...outbox,
+              claimNext: (input) =>
+                (input.excludeTitleGeneration === true
+                  ? Ref.update(nonTitleClaims, (count) => count + 1)
+                  : Effect.void
+                ).pipe(Effect.andThen(outbox.claimNext(input))),
+            }),
+            layerExecutor,
+          ),
+        ),
+      );
+
+      yield* Effect.gen(function* () {
+        yield* EffectWorker.runDaemonWithOptions({ concurrency: 4 }).pipe(Effect.forkScoped);
+        yield* outbox.enqueue(
+          titleThreads.map((threadId, index) => ({
+            id: `effect:${key}:title-${index}`,
+            commandId,
+            threadId,
+            request: { type: "thread-title.generate", kind: { type: "regenerate" } },
+          })),
+        );
+        yield* outbox.notifyAvailable(titleThreads.length);
+        const held = [
+          yield* Queue.take(titleStarts),
+          yield* Queue.take(titleStarts),
+          yield* Queue.take(titleStarts),
+        ];
+        // A later availableAt keeps the provider start behind every title in FIFO order.
+        yield* TestClock.adjust("1 second");
+        yield* outbox.enqueue([
+          {
+            id: providerEffectId,
+            commandId,
+            threadId: ThreadId.make(`thread:${key}:provider`),
+            request: { type: "provider-turn.start", runId: RunId.make(`run:${key}`) },
+          },
+        ]);
+        yield* outbox.notifyAvailable();
+
+        const started = yield* Deferred.await(providerStarted).pipe(
+          Effect.timeoutOption("1 minute"),
+          Effect.forkChild,
+        );
+        yield* TestClock.adjust("1 minute");
+        assert.isTrue(
+          Option.isSome(yield* Fiber.join(started)),
+          "provider-turn.start waited behind title generation",
+        );
+        yield* outbox.awaitSettled(providerEffectId);
+        assert.equal(yield* Queue.size(titleStarts), 0);
+
+        // The waiting title is not the reserved worker's deadline, so it must not spin on it.
+        const claimsWhileTitleWaits = yield* Ref.get(nonTitleClaims);
+        yield* TestClock.adjust("10 seconds");
+        assert.equal(yield* Ref.get(nonTitleClaims), claimsWhileTitleWaits);
+
+        const heldIndex = Number(held[0]?.split("-").at(-1));
+        const cancelled = yield* outbox.cancelUnsettled({
+          threadId: titleThreads[heldIndex]!,
+          effectTypes: ["thread-title.generate"],
+          reason: "fixture cancel",
+        });
+        yield* outbox.signalCancellations(cancelled);
+        const nextTitle = yield* Queue.take(titleStarts);
+        assert.notInclude(held, nextTitle);
+
+        yield* Deferred.succeed(releaseTitles, undefined);
+        const effects = yield* outbox.listByCommandId(commandId);
+        yield* Effect.forEach(effects, (effect) => outbox.awaitSettled(effect.id), {
+          discard: true,
+        });
+        const statuses = yield* outbox.listByCommandId(commandId);
+        assert.deepEqual(statuses.map((effect) => effect.status).toSorted(), [
+          "cancelled",
+          "succeeded",
+          "succeeded",
+          "succeeded",
+          "succeeded",
+        ]);
+      }).pipe(Effect.provide(layerWorker), Effect.scoped);
+    }).pipe(Effect.provide(layerIsolatedOutbox)),
+  );
+
+  it.effect.each([1, 2] as const)(
+    "wakes a title-capable worker for a new title (concurrency: %s)",
+    (concurrency) =>
+      Effect.gen(function* () {
+        const outbox = yield* EffectOutbox.EffectOutboxV2;
+        const key = `foundation-title-wakeup-${concurrency}`;
+        const waiting = yield* Ref.make(0);
+        const allIdle = yield* Deferred.make<void>();
+        const titleStarted = yield* Deferred.make<void>();
+        const layerExecutor = Layer.succeed(
+          EffectWorker.OrchestrationEffectExecutorV2,
+          EffectWorker.OrchestrationEffectExecutorV2.of({
+            execute: () => Deferred.succeed(titleStarted, undefined),
+          }),
+        );
+        const layerWorker = EffectWorker.layerWithOptions({ workerId: `${key}-worker` }).pipe(
+          Layer.provide(
+            Layer.merge(
+              Layer.succeed(EffectOutbox.EffectOutboxV2, {
+                ...outbox,
+                awaitAvailable: (filter) =>
+                  Ref.updateAndGet(waiting, (count) => count + 1).pipe(
+                    Effect.flatMap((count) =>
+                      count === concurrency ? Deferred.succeed(allIdle, undefined) : Effect.void,
+                    ),
+                    Effect.andThen(outbox.awaitAvailable(filter)),
+                  ),
+              }),
+              layerExecutor,
+            ),
+          ),
+        );
+
+        yield* Effect.gen(function* () {
+          yield* EffectWorker.runDaemonWithOptions({ concurrency }).pipe(Effect.forkScoped);
+          yield* Deferred.await(allIdle);
+          yield* outbox.enqueue([
+            {
+              id: `effect:${key}:title`,
+              commandId: CommandId.make(`command:${key}`),
+              threadId: ThreadId.make(`thread:${key}`),
+              request: { type: "thread-title.generate", kind: { type: "regenerate" } },
+            },
+          ]);
+          yield* outbox.notifyAvailable();
+
+          // Shorter than the liveness poll, so only the wakeup hint can start the title.
+          const started = yield* Deferred.await(titleStarted).pipe(
+            Effect.timeoutOption("10 seconds"),
+            Effect.forkChild,
+          );
+          yield* TestClock.adjust("10 seconds");
+          assert.isTrue(Option.isSome(yield* Fiber.join(started)), "the title wakeup was lost");
+        }).pipe(Effect.provide(layerWorker), Effect.scoped);
+      }).pipe(Effect.provide(layerIsolatedOutbox)),
   );
 
   it.effect("does not reclaim a running effect after its process-local lease expires", () =>
@@ -2907,6 +3072,9 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
             runRecoveryOnce: Effect.succeed(false),
             runOnce: Effect.succeed(false),
             nextClaimableAt: Effect.succeedNone,
+            awaitNonTitleWork: Effect.void,
+            runNonTitleOnce: Effect.succeed(false),
+            nextNonTitleClaimableAt: Effect.succeedNone,
             drain: () => Effect.succeed(0),
           }),
         ),
@@ -3124,6 +3292,9 @@ it.layer(layerTest)("orchestration V2 foundation persistence", (it) => {
             runRecoveryOnce: Effect.succeed(false),
             runOnce: Effect.succeed(false),
             nextClaimableAt: Effect.succeedNone,
+            awaitNonTitleWork: Effect.void,
+            runNonTitleOnce: Effect.succeed(false),
+            nextNonTitleClaimableAt: Effect.succeedNone,
             drain: () => Effect.succeed(0),
           }),
         ),

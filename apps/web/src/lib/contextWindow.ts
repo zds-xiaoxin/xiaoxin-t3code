@@ -78,6 +78,7 @@ export function deriveLatestContextWindowSnapshot(
       remainingPercentage,
       inputTokens: liveUsage.inputTokens ?? null,
       cachedInputTokens: liveUsage.cachedInputTokens ?? null,
+      cacheCreationTokens: liveUsage.cacheCreationTokens ?? null,
       outputTokens: liveUsage.outputTokens ?? null,
       reasoningOutputTokens: liveUsage.reasoningOutputTokens ?? null,
       lastUsedTokens: null,
@@ -113,6 +114,7 @@ export function deriveLatestContextWindowSnapshot(
       remainingPercentage: usedPercentage === null ? null : Math.max(0, 100 - usedPercentage),
       inputTokens: asFiniteNumber(providerUsage.inputTokens),
       cachedInputTokens: asFiniteNumber(providerUsage.cachedInputTokens),
+      cacheCreationTokens: asFiniteNumber(providerUsage.cacheCreationTokens),
       outputTokens: asFiniteNumber(providerUsage.outputTokens),
       reasoningOutputTokens: asFiniteNumber(providerUsage.reasoningOutputTokens),
       lastUsedTokens: asFiniteNumber(providerUsage.lastUsedTokens),
@@ -155,6 +157,7 @@ export function deriveLatestContextWindowSnapshot(
       remainingPercentage,
       inputTokens: null,
       cachedInputTokens: null,
+      cacheCreationTokens: null,
       outputTokens: null,
       reasoningOutputTokens: null,
       lastUsedTokens: null,
@@ -176,7 +179,7 @@ export function deriveLatestContextWindowSnapshot(
 
 export function formatContextWindowTokens(value: number | null): string {
   if (value === null || !Number.isFinite(value)) {
-    return "0";
+    return "—";
   }
   if (value < 1_000) {
     return `${Math.round(value)}`;
