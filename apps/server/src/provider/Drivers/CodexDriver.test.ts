@@ -384,7 +384,7 @@ it.layer(layerTest)("CodexDriver", (it) => {
       Effect.gen(function* () {
         const fs = yield* FileSystem.FileSystem;
         const tempDir = yield* fs
-          .makeTempDirectoryScoped({ prefix: "t3-codex-driver-" })
+          .makeTempDirectoryScoped({ prefix: "t3 codex-driver-" })
           .pipe(Effect.flatMap((directory) => fs.realPath(directory)));
         // One standalone install, linked onto PATH and used by two account homes.
         // `İ` gets longer when lowercased, so the home must not be sliced from a
@@ -423,7 +423,7 @@ it.layer(layerTest)("CodexDriver", (it) => {
 
         for (const update of updates) {
           expect(update).toMatchObject({
-            command: `${binaryPath} update`,
+            command: `'${binaryPath}' update`,
             args: ["update"],
             lockKey: "codex-native",
             env: { CODEX_HOME: installHome },

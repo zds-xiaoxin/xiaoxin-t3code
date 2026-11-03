@@ -160,6 +160,7 @@ it.effect(
             quitting,
           } as DesktopState.DesktopState["Service"]),
           Effect.provideService(DesktopWindow.DesktopWindow, {
+            showConnectingSplash: Effect.void,
             ensureMain: record("window").pipe(
               Effect.andThen(Deferred.succeed(windowStarted, undefined)),
             ),

@@ -424,7 +424,7 @@ it.layer(
     "pins npm updates to the global prefix that owns the package and the provider's PATH",
     () =>
       Effect.gen(function* () {
-        const tempDir = yield* makeTempDir("t3-npm-capabilities");
+        const tempDir = yield* makeTempDir("t3 npm-capabilities");
         const link = linkIntoPackage(tempDir, "package-tool", [
           "lib",
           "node_modules",
@@ -446,7 +446,7 @@ it.layer(
           provider: driver("packageTool"),
           packageName: "@example/package-tool",
           update: {
-            command: `npm install -g --prefix ${tempDir} --allow-scripts=@example/package-tool @example/package-tool@latest`,
+            command: `npm install -g --prefix '${tempDir}' --allow-scripts=@example/package-tool @example/package-tool@latest`,
             executable: "npm",
             args: [
               "install",
@@ -1066,7 +1066,7 @@ it.layer(
 
   it.effect.skipIf(windowsHost)("switches to native updates and runs the resolved executable", () =>
     Effect.gen(function* () {
-      const tempDir = yield* makeTempDir("t3-native-capabilities");
+      const tempDir = yield* makeTempDir("t3 native-capabilities");
       const nativeBinDir = NodePath.join(tempDir, ".local", "bin");
       const nativePath = NodePath.join(nativeBinDir, "native-package-tool");
       writeExecutable(nativePath);
@@ -1086,7 +1086,7 @@ it.layer(
         provider: driver("nativePackageTool"),
         packageName: "@example/native-package-tool",
         update: {
-          command: `${nativePath} update`,
+          command: `'${nativePath}' update`,
           executable: nativePath,
           args: ["update"],
           lockKey: "nativePackageTool-native",
