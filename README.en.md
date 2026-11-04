@@ -1,36 +1,32 @@
 # Xiaoxin T3 Code · Community Edition
 
-**New Mac preview: C37 · two interface styles.** Switch Current style / macOS style in Appearance → Interface. Based on the 0.1.7 nightly core, for Apple Silicon Mac testing.
+**Current community release: C37 · two interface styles.** Choose Current style or macOS style in Appearance → Interface. For Apple Silicon Mac.
 
-[Download C37 preview](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) · [Installation and validation scope](docs/community/c37/RELEASE.en.md)
+[Download C37 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [Installation and validation scope](docs/community/c37/RELEASE.en.md) · [简体中文](README.md)
 
-**Current recommended Mac release: C31.** Includes recovery for invisible replies in newly created threads, a stuck Run inspector and the false disconnection state of blank drafts, while retaining the customized workbench features.
-
-[Download the recommended release · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [C31 notes and known limitations](docs/community/c31/RELEASE.en.md) · [简体中文](README.md)
-
-The default development branch is `main`. C31 is this community fork's release number; its embedded official version remains 0.1.5. It is not a new upstream T3 version.
+C37 is the Xiaoxin community release number, based on upstream `0.1.7-nightly.20261103.4119`. Community release status and the upstream version channel are stated separately; see the release notes for known limits.
 
 <a id="feature-showcase"></a>
 
 <!-- showcase:overview -->
 
-![Mac workbench overview: allowances, image feedback and task progress](assets/community/showcase/01-workbench-overview.png)
+![Actual C37 workbench: conversation, task progress and context](assets/community/c37/01-workbench.png)
 
-_Feature-layout concept with fictional content; not an acceptance screenshot._
+_Actual C37 compiled UI with an isolated sample project and conversation; no UI redraw._
 
 ## See the workbench features
 
-Images are visible directly and can be opened at full size. Overview, allowance, task and artifact images are layout concepts; context and model menus are component previews; usage, storage and settings images are previously published isolated-runtime screenshots. Earlier screenshots illustrate retained features; provenance is stated below each image.
+The C37 overview, quota, task, image preview, context and style settings are unedited screenshots of the actual compiled web UI with isolated synthetic data. Earlier real runtime captures for models, usage and storage remain version-labelled. Web captures are not presented as native-window captures.
 
 <!-- showcase:allowances -->
 
-### Pinned cross-provider allowances
+### Quota menu and pinned-display settings
 
-Keep remaining allowances in the header and expand account, window and reset details. Each provider retains its own reporting window.
+Open the header quota panel and choose pinned items. This capture shows its real empty state without personal accounts; available items and reporting windows depend on each connected provider.
 
-![Pinned allowances and expanded window details](assets/community/showcase/02-allowances.png)
+![Actual quota menu before any account is pinned](assets/community/c37/02-allowances.png)
 
-_Windows layout concept with fictional values; actual windows depend on provider data._
+_Actual C37 quota panel; the demo has no linked personal accounts or invented balances._
 
 <!-- showcase:progress -->
 
@@ -38,19 +34,19 @@ _Windows layout concept with fictional values; actual windows depend on provider
 
 See completion counts and the current stage in the sidebar, then open the full step list in Run. Running, waiting for confirmation and completed states remain distinct.
 
-![Task steps and sidebar progress](assets/community/showcase/03-task-progress.png)
+![Task steps and sidebar progress](assets/community/c37/03-task-progress.png)
 
-_Windows layout concept with synthetic tasks. The Mac build retains its macOS appearance._
+_Actual C37 sidebar/run panel with synthetic replay steps and status._
 
 <!-- showcase:artifacts -->
 
-### Artifact previews, image comparison and feedback
+### Image preview and revision-comment drafts
 
-Review outputs, compare an original with a proposed revision and compose feedback before sending it for another turn.
+Review outputs, enlarge an image and prepare revision comments before sending them. The screenshot shows single-image viewing and an unsent comment draft; the separate two-image comparison flow is not illustrated here.
 
-![Artifact preview, version comparison and feedback draft](assets/community/showcase/04-artifacts-feedback.png)
+![Actual image viewer and unsent revision-comment draft](assets/community/c37/04-image-preview.png)
 
-_Windows feature-layout concept using synthetic illustrations; it does not prove a real revision was executed._
+_Actual C37 artifact image viewer and revision-comment draft using the public app icon; nothing was sent or regenerated._
 
 <!-- showcase:context -->
 
@@ -58,9 +54,9 @@ _Windows feature-layout concept using synthetic illustrations; it does not prove
 
 Inspect context occupancy, input/output, and cache reads/writes for the active session. Missing counters show ?, while reported zeros remain 0. Continue in a new conversation when needed.
 
-![Compact context panel and continuation actions](assets/community/c36/context-cache-mac.png)
+![Compact context panel and continuation actions](assets/community/c37/06-context-cache.png)
 
-_Compiled C36 Mac candidate UI served by its isolated native backend. Context and cache values are synthetic visual fixtures, not account usage or measured savings._
+_Actual C37 context panel; token/cache values are synthetic replay data, not personal usage or measured savings._
 
 <!-- showcase:models -->
 
@@ -94,18 +90,18 @@ _C28 isolated-runtime screenshot with fixture directories. Occupancy is not recl
 
 <!-- showcase:settings -->
 
-### Chinese and English settings
+### Two interface styles and Chinese settings
 
-Localized categories, search and dynamic guidance accompany the retained appearance and typography controls.
+Choose Current style or macOS style in Appearance → Interface; colors, font sizes and sidebar preferences remain independent. Chinese categories, search and guidance cover daily settings; English is also supported.
 
-![English settings and feature categories](docs/community/c30/settings-en.png)
+![Chinese Appearance settings with both interface-style choices](assets/community/c37/05-interface-styles.png)
 
-_Previously published C30 isolated-runtime settings screenshot._
+_Actual C37 Chinese Appearance settings showing Current style / macOS style._
 
 ## Download and use
 
-- **C37 Mac preview:** [Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) and [C37 installation notes](docs/community/c37/RELEASE.en.md). Updates are manual. Do not open data already upgraded by C37 with C31.
-- **Previous stable C31 · Apple Silicon Mac:** download `Xiaoxin-T3-Code-C31-macOS-arm64.zip` from the recommended release and verify its SHA-256.
+- **C37 community release:** [Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) and [C37 installation notes](docs/community/c37/RELEASE.en.md). Updates are manual. Do not open data already upgraded by C37 with C31.
+- **Previous stable C31 · Apple Silicon Mac:** download `Xiaoxin-T3-Code-C31-macOS-arm64.zip` from the [C31 historical release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) and verify its SHA-256.
 - **Windows x64:** [C31-W1 test release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows source and concepts](https://github.com/zds-xiaoxin/xiaoxin-t3code/tree/community/windows-c31-w1). Windows testing and the recommended Mac release are published separately.
 - Finish tasks and quit T3 before replacing the Mac application. Retain the previous application for rollback and preserve chats, authentication and configuration. Users supply their own provider CLIs and authentication.
 - The Mac application is ad-hoc signed and not Apple-notarized. See the release notes for supported platforms, installation and verification limits.

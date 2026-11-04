@@ -1,36 +1,32 @@
 # Xiaoxin T3 Code · 小新定制版
 
-**最新 Mac 测试版：C37 · 双界面风格。** 在「外观 → 界面」切换当前风格 / macOS 风格；基于 0.1.7 nightly，供 Apple Silicon Mac 试用。
+**当前社区正式版：C37 · 双界面风格。** 在「外观 → 界面」切换当前风格 / macOS 风格；适用于 Apple Silicon Mac。
 
-[下载 C37 测试版](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) · [安装与验证范围](docs/community/c37/RELEASE.zh.md)
+[下载 C37 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [安装与验证范围](docs/community/c37/RELEASE.zh.md) · [English](README.en.md)
 
-**当前推荐正式版：Mac C31。** 修复新建会话回复不显示、运行详情卡住与空白草稿断连误报，并保留现有定制功能。
-
-[下载当前推荐版 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [C31 更新与已知限制](docs/community/c31/RELEASE.zh.md) · [English](README.en.md)
-
-默认主线为 `main`。C31 是本社区分支的发行编号，内嵌官方版本标记仍为 0.1.5；不是上游 T3 的新版本号。
+C37 是小新社区发行编号，基于上游 `0.1.7-nightly.20261103.4119`。社区正式发布与上游的版本通道分别标注；已知限制见发行说明。
 
 <a id="feature-showcase"></a>
 
 <!-- showcase:overview -->
 
-![Mac 工作台总览：额度、图片反馈与任务进度](assets/community/showcase/01-workbench-overview.png)
+![C37 实际工作台：中文对话、任务步骤与上下文入口](assets/community/c37/01-workbench.png)
 
-_功能布局示意，全部为示例内容；不作为实机验收截图。_
+_C37 实际编译界面，使用独立示例项目与对话；截图未重绘。_
 
 ## 特色功能，看图了解
 
-图片直接展示，点击可放大。总览、额度、任务和产物图为布局示意；上下文与模型菜单为组件预览；费用、磁盘与设置图为已公开的隔离环境截图。部分图来自之前版本，用于展示保留的功能，具体来源随图标注。
+图片直接展示，点击可放大。总览、额度、任务、图片预览、上下文与双风格设置来自 C37 的实际编译界面，使用独立示例数据，未重绘界面。模型、费用与磁盘图保留已有真实运行截图，并标注版本。网页截图不冒充原生窗口截图。
 
 <!-- showcase:allowances -->
 
-### 跨模型额度常显
+### 额度入口与常显设置
 
-把常用模型的剩余额度放在右上角，展开查看各账号、窗口与重置时间。不同供应商的时间窗口各自保留。
+从右上角打开额度面板并配置常显项。此截图展示未连接个人账号时的真实空状态；连接后可显示的项目和时间窗口以供应商返回为准。
 
-![跨模型额度常显与展开详情](assets/community/showcase/02-allowances.png)
+![未配置常显账号时的实际额度面板](assets/community/c37/02-allowances.png)
 
-_Windows 布局示意、示例数值；实际窗口以供应商返回为准。_
+_C37 实际额度面板；示例环境未连接个人账号，不展示虚构余额。_
 
 <!-- showcase:progress -->
 
@@ -38,19 +34,19 @@ _Windows 布局示意、示例数值；实际窗口以供应商返回为准。_
 
 侧栏直接看到完成数和当前阶段，运行面板查看完整步骤，区分执行中、等待确认与已完成。
 
-![任务步骤与侧栏进度](assets/community/showcase/03-task-progress.png)
+![任务步骤与侧栏进度](assets/community/c37/03-task-progress.png)
 
-_Windows 布局示意；任务和进度均为示例，Mac 保留 macOS 外观。_
+_C37 实际侧栏与运行面板，步骤和状态为独立回放示例。_
 
 <!-- showcase:artifacts -->
 
-### 产物预览、图片对比与修改意见
+### 文件与图片，直接预览
 
-集中查看产物，比较原图与修改预览。修改意见先整理为草稿，由你发送后继续处理。
+集中查看产物、放大图片，并将修改意见整理为草稿，由你发送后继续处理。下图展示单图查看与意见草稿；双图对比是独立入口，此图没有演示。
 
-![产物预览、版本对比和图片反馈草稿](assets/community/showcase/04-artifacts-feedback.png)
+![图片预览与修改意见草稿](assets/community/c37/04-image-preview.png)
 
-_Windows 功能布局示意，使用合成图片；不代表图中的返工已经实际执行。_
+_C37 实际产物图片查看器与修改意见草稿，使用公开应用图标；没有发送草稿或执行返工。_
 
 <!-- showcase:context -->
 
@@ -58,9 +54,9 @@ _Windows 功能布局示意，使用合成图片；不代表图中的返工已�
 
 查看当前会话的上下文占用、输入与输出、缓存读取与写入；未上报的值显示为 ?，真实零值保留为 0。需要时可交接到新会话。
 
-![紧凑的上下文面板与续聊操作](assets/community/c36/context-cache-mac.png)
+![紧凑的上下文面板与续聊操作](assets/community/c37/06-context-cache.png)
 
-_C36 Mac 候选的编译界面，由隔离原生后端提供；上下文和缓存数值为合成展示数据，不是账号消耗或节省率。_
+_C37 实际上下文面板；令牌与缓存为独立回放示例，不是个人消耗或节省率。_
 
 <!-- showcase:models -->
 
@@ -94,18 +90,18 @@ _C28 隔离环境实拍，目录为测试数据；占用不等于可释放量。
 
 <!-- showcase:settings -->
 
-### 中文设置与清晰的功能分区
+### 双界面风格与中文设置
 
-中文分类、搜索和动态说明覆盖日常设置，也可切换英文；外观和字体等调整继续保留。
+在「外观 → 界面」选择当前风格或 macOS 风格，即时切换并保留配色、字号和侧栏偏好。中文分类、搜索和说明覆盖日常设置。
 
-![中文设置与功能分区](docs/community/c30/settings-zh.png)
+![中文设置与功能分区](assets/community/c37/05-interface-styles.png)
 
-_C30 已公开的隔离环境截图，作为现有中文设置的展示。_
+_C37 实际中文外观设置，展示当前风格 / macOS 风格两个选择。_
 
 ## 下载与使用
 
-- **C37 Mac 测试版：** [下载 Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103)，查看 [C37 安装说明](docs/community/c37/RELEASE.zh.md)。仅手动更新；使用过 C37 的数据请继续用兼容新版，不能直接改用下方 C31。
-- **旧正式版 C31 · Mac Apple Silicon：** 从上方下载页获取 `Xiaoxin-T3-Code-C31-macOS-arm64.zip`，核对页面提供的 SHA-256。
+- **C37 社区正式版：** [下载 Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103)，查看 [C37 安装说明](docs/community/c37/RELEASE.zh.md)。仅手动更新；使用过 C37 的数据请继续用兼容新版，不能直接改用下方 C31。
+- **旧正式版 C31 · Mac Apple Silicon：** 从 [C31 历史发行页](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) 获取 `Xiaoxin-T3-Code-C31-macOS-arm64.zip`，核对页面提供的 SHA-256。
 - **Windows x64：** [C31-W1 测试版](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows 源码与示意图](https://github.com/zds-xiaoxin/xiaoxin-t3code/tree/community/windows-c31-w1)。Windows 测试版与 Mac 正式推荐版分别发布。
 - 替换 Mac 应用前请结束任务并退出 T3，保留旧应用供回退。不要删除或重置聊天、登录和配置目录；各模型使用你自己的 CLI 与登录。
 - Mac 包为 ad-hoc 签名，尚未经过 Apple 公证。适用平台、安装方法和验证范围分别见对应的 C37 / C31 说明。

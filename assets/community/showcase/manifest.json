@@ -16,33 +16,33 @@
   "features": [
     {
       "id": "overview",
-      "image": "assets/community/showcase/01-workbench-overview.png",
-      "kind": "concept",
-      "source": "AI-edited public synthetic Mac workbench; fictional example task and allowance values"
+      "image": "assets/community/c37/01-workbench.png",
+      "kind": "isolated-runtime",
+      "source": "C37 compiled real web UI served by the isolated packaged server; synthetic public project/messages; unedited screenshot on macOS; not a native-window capture"
     },
     {
       "id": "allowances",
-      "image": "assets/community/showcase/02-allowances.png",
-      "kind": "concept",
-      "source": "Published Windows layout concept; fictional values; provider windows follow actual returned data"
+      "image": "assets/community/c37/02-allowances.png",
+      "kind": "isolated-runtime",
+      "source": "C37 real quota menu; isolated fixture has no linked account balances; no invented percentages"
     },
     {
       "id": "progress",
-      "image": "assets/community/showcase/03-task-progress.png",
-      "kind": "concept",
-      "source": "Published Windows layout concept; synthetic task steps and counts"
+      "image": "assets/community/c37/03-task-progress.png",
+      "kind": "isolated-runtime",
+      "source": "C37 real run panel and sidebar plan; synthetic completed replay steps and demo content"
     },
     {
       "id": "artifacts",
-      "image": "assets/community/showcase/04-artifacts-feedback.png",
-      "kind": "concept",
-      "source": "Published Windows artifact/feedback concept; synthetic forest-cottage illustrations"
+      "image": "assets/community/c37/04-image-preview.png",
+      "kind": "isolated-runtime",
+      "source": "C37 real artifact image viewer with revision-comment draft; public application icon, no draft sent or image regenerated"
     },
     {
       "id": "context",
-      "image": "assets/community/c36/context-cache-mac.png",
+      "image": "assets/community/c37/06-context-cache.png",
       "kind": "isolated-runtime",
-      "source": "C36 macOS candidate compiled web UI served by the native packaged backend; synthetic replay and projection counters; not account usage or measured savings"
+      "source": "C37 real context popover; synthetic replay counters, not personal usage or measured savings"
     },
     {
       "id": "models",
@@ -64,12 +64,9 @@
     },
     {
       "id": "settings",
-      "images": {
-        "zh": "docs/community/c30/settings-zh.png",
-        "en": "docs/community/c30/settings-en.png"
-      },
       "kind": "isolated-runtime",
-      "source": "Previously published C30 Chinese/English settings screenshots; fixture environment"
+      "source": "C37 real Chinese Appearance settings; open Current/macOS style selector, unedited screenshot",
+      "image": "assets/community/c37/05-interface-styles.png"
     }
   ]
 }

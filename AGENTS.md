@@ -217,3 +217,7 @@ Architecture and its constraints: `docs/internals/overview.md`. Glossary: `docs/
 ## Additional tips
 
 - Security is important, but should not be over-indexed on, especially for dev mode/maintainer-only features.
+
+## Xiaoxin community release communication
+
+For this fork’s user-visible feature releases, follow [community-release-communication.md](docs/operations/community-release-communication.md) and the existing [showcase policy](docs/operations/community-release-showcase.md). Use actual runtime UI with synthetic public fixtures, not AI-redrawn UI. The user requires feature announcements from @DDdxx666; verify account and publication readback, and report a concrete channel/login blocker if unavailable. This does not authorize unrelated posts or a new recurring task.

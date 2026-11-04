@@ -1,0 +1,9 @@
+# Community feature announcements
+
+User decision, 2026-11-03: publish a Twitter/X announcement for every user-facing feature update, including what changed. Account: 小新指北, [@DDdxx666](https://x.com/DDdxx666). This requirement applies to Xiaoxin T3 Code; it does not create a scheduled task or authorize unrelated posts.
+
+- Before a feature release, prepare a concise Chinese announcement, concrete before/after behavior, the version and public download link, and one to four authentic screenshots. Focus on the feature people can use. Group closely related changes into one coherent post or thread rather than posting every commit.
+- Capture the actual released UI with isolated synthetic projects. Do not redraw UI using AI, add nonexistent controls, invent account balances, or show private conversations, credentials, machine names or customer data. Label synthetic values, earlier versions, web/native platform differences and genuinely untested claims. Keep raw captures and file provenance in local evidence.
+- Repository status uses the community release channel. State upstream nightly ancestry independently. Keep known limitations specific; a community release is not a claim of universal acceptance, upstream stable status, Apple notarization or unmeasured performance gains.
+- Use the established @DDdxx666 account and an available authorized publishing channel. Verify the active account and attach the reviewed assets before sending. Confirm success from the resulting public post URL and readback, not a click or draft. If no authenticated channel is available, retain the complete ready-to-post package and report the precise login/tool gap; never claim it was posted.
+- Preserve previous release notes and user data. Record the released commit/version, announcement text, image hashes and publication URL/status in the handoff.

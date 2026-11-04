@@ -1,14 +1,14 @@
-# Xiaoxin T3 Code C37 · Apple Silicon Mac preview
+# Xiaoxin T3 Code C37 · Apple Silicon Mac community release
 
-[简体中文](RELEASE.zh.md) · 2026-11-03 · Community prerelease · macOS arm64
+[简体中文](RELEASE.zh.md) · 2026-11-03 · Community release · macOS arm64
 
 <!-- community-showcase -->
 
 [完整功能图集 / Full feature gallery](https://github.com/zds-xiaoxin/xiaoxin-t3code#feature-showcase)
 
-![工作台功能布局示意 / Workbench feature-layout concept](https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/showcase/01-workbench-overview.png)
+![C37 工作台实际界面 / Actual C37 workbench](https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/c37/01-workbench.png)
 
-_合成内容的功能布局示意；其他图片的来源和平台标注见完整图集。 / Synthetic layout concept; see the gallery for image provenance and platform labels._
+_C37 实际编译网页界面，使用独立示例数据；截图未重绘，不冒充原生窗口截图。 / Unedited actual C37 compiled web UI with synthetic fixtures, not a native-window capture._
 
 <!-- /community-showcase -->
 
@@ -26,9 +26,11 @@ Includes the C36 0.1.7 nightly core, compact Chinese workbench, context/cache de
 - Existing users must finish tasks and quit T3 before backing up `~/.t3` and `~/Library/Application Support/t3code-v2`. Keep the old app, then replace it. Keep T3 closed during the cold backup and run only one instance against the data.
 - The new core uses schema 78. **Do not run an older app against upgraded data or restore an old database over new chats.** A rollback requires compatible software and a matching complete pre-upgrade backup.
 - The app is ad-hoc signed and not Apple-notarized. If macOS blocks opening, use its Privacy & Security guidance. Installing this package does not require disabling system security or granting Full Disk Access.
-- **Updates are manual for this preview.** Download subsequent builds from this repository. The distribution disables the upstream nightly update feed and is re-signed; its application ASAR is identical to the verified C37 build.
+- **Updates are manual for this release.** Download subsequent builds from this repository. The distribution disables the upstream nightly update feed and is re-signed; its application ASAR is identical to the verified C37 build.
 
 ## Validation and limits
+
+Full GitHub CI passed for source commit `09b49d68b7` (2026-11-03); the local strict-idle CPU gap remains separately documented.
 
 - 59 targeted contract/settings tests, 88 affected tests, typechecks of 36 packages, formatting, lint, knip and React Compiler checks passed. These test sets overlap and must not be added together. All seven desktop build tasks passed.
 - An isolated real client verified both style transitions, persistence after reopening, light/dark materials and removal of macOS rules when returning to Current style. The installed Mac passed Chinese UI, historical conversations/projects, existing provider authentication status and protected-configuration readback. Physical Fn switching and WeChat IME candidates/text input were tested by the user.
@@ -36,4 +38,4 @@ Includes the C36 0.1.7 nightly core, compact Chinese workbench, context/cache de
 - No real or paid model request was sent for this acceptance pass. Not every provider, network, long-running conversation or remote connection is covered. Optional T3 Connect sign-in was not retested, and this local ad-hoc package omits the official signing/passkey claims.
 - Release `BUILD-PROVENANCE.json` contains the public summary of ZIP integrity, signatures, member hashes and isolated startup.
 
-C31 remains the previous recommended stable download for its data version. C37 is a Mac prerelease for friends to try; use this release's assets rather than the Latest link.
+C37 is the current recommended Mac community release and Latest points here. C31 remains a historical download for its data version; do not open upgraded data with C31. The existing URL retains `test` for link compatibility; changing release status does not change the application archive.
