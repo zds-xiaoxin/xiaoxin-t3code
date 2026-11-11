@@ -10,7 +10,11 @@ C47 为社区发行编号；内嵌上游 `0.1.7-nightly.20261103.4119` 并定向
 
 <!-- showcase:overview -->
 
-![C47 更新总览：数据、改动与真实界面](assets/community/c47/01-update-card-A.png)
+<p align="center">
+  <a href="assets/community/c47/01-update-card-A.png"><img src="assets/community/c47/01-update-card-A.png" alt="C47 更新总览：数据、改动与真实界面" width="160" /></a>
+  <br />
+  <a href="assets/community/c47/01-update-card-A.png">点击查看完整更新长图</a>
+</p>
 
 _C47 更新长图：实测数据、具体改动与实际 ZIP 解压应用截图。原有图库继续保留，历史截图各自标明版本。_
 

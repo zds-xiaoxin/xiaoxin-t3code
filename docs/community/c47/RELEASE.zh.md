@@ -4,7 +4,11 @@
 
 <!-- community-showcase -->
 
-![C47 更新总览 / C47 update card](https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/c47/01-update-card-A.png)
+<p align="center">
+  <a href="https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/c47/01-update-card-A.png"><img src="https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/c47/01-update-card-A.png" alt="C47 更新总览 / C47 update card" width="160" /></a>
+  <br />
+  <a href="https://raw.githubusercontent.com/zds-xiaoxin/xiaoxin-t3code/main/assets/community/c47/01-update-card-A.png">点击查看完整更新长图</a>
+</p>
 [完整功能图集 / Full feature gallery](https://github.com/zds-xiaoxin/xiaoxin-t3code#feature-showcase)
 <!-- /community-showcase -->
 

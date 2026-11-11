@@ -17,7 +17,17 @@ const required = [
   "settings",
 ];
 const fail = (message) => failures.push(message);
-const markdownImages = (text) => [...text.matchAll(/!\[([^\]]*)\]\(([^\s)]+)\)/g)];
+const markdownImages = (text) => {
+  const images = [...text.matchAll(/!\[([^\]]*)\]\(([^\s)]+)\)/g)];
+  for (const match of text.matchAll(/<img\b[^>]*>/gi)) {
+    const attribute = (name) =>
+      match[0].match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i"))?.[1] || "";
+    const image = [match[0], attribute("alt"), attribute("src")];
+    image.index = match.index;
+    images.push(image);
+  }
+  return images.sort((a, b) => a.index - b.index);
+};
 const foldedAt = (text, offset) => {
   let depth = 0;
   for (const tag of text.slice(0, offset).matchAll(/<\/?details\b[^>]*>/gi)) {

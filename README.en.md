@@ -10,7 +10,11 @@ C47 is the community release number; embedded upstream version remains `0.1.7-ni
 
 <!-- showcase:overview -->
 
-![C47 update: data, changes and actual interface](assets/community/c47/01-update-card-A.png)
+<p align="center">
+  <a href="assets/community/c47/01-update-card-A.png"><img src="assets/community/c47/01-update-card-A.png" alt="C47 update: data, changes and actual interface" width="160" /></a>
+  <br />
+  <a href="assets/community/c47/01-update-card-A.png">Click to view the full update card</a>
+</p>
 
 _C47 release card: measured data, concrete changes and an authentic screenshot of the application extracted from the actual ZIP. Previous gallery images remain version-labelled._
 
