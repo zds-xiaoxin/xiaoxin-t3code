@@ -105,18 +105,16 @@ function MemoryEnvironment({
   const memory = config?.settings.memory ?? { approved: [], pending: [] };
   const mutate = async (memoryMutation: UserMemoryMutation) => {
     setBusy(true);
-    try {
-      const result = await update({ environmentId, input: { patch: {}, memoryMutation } });
-      if (AsyncResult.isSuccess(result)) {
-        setEditor(null);
-        toastManager.add({
-          type: "success",
-          title:
-            memoryMutation.type === "approve" ? "记忆已批准，将在下一次普通回合生效" : "记忆已更新",
-        });
-      }
-    } finally {
-      setBusy(false);
+    const result = await update({ environmentId, input: { patch: {}, memoryMutation } }).finally(
+      () => setBusy(false),
+    );
+    if (AsyncResult.isSuccess(result)) {
+      setEditor(null);
+      toastManager.add({
+        type: "success",
+        title:
+          memoryMutation.type === "approve" ? "记忆已批准，将在下一次普通回合生效" : "记忆已更新",
+      });
     }
   };
   const scopeTitle = (scope: MemoryScope) =>
