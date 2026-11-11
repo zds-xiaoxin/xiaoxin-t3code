@@ -3,7 +3,7 @@
   "kind": "targeted local measurements, not universal performance",
   "componentComparison": {
     "baseline": "C45 activity-strip CSS/markup",
-    "candidate": "C46 activity-strip implementation, byte-identical C47 client",
+    "candidate": "C47 retains measured C46 strip logic and normalized CSS; final whole web rebuild is not byte-identical",
     "method": "same headful Chromium window, 900x700 CSS px, deviceScaleFactor2; two skins, two rounds; each sample8s after1.5s settle; pooled mean across4 samples per version",
     "meansPercent": {
       "old": {
@@ -49,5 +49,11 @@
     "C47": 7,
     "additionalDesktopSkins": ["harbor", "mist"]
   },
-  "privacy": "Synthetic replay values only. No customer chats, accounts or credentials."
+  "privacy": "Synthetic replay values only. No customer chats, accounts or credentials.",
+  "archiveSize": {
+    "previousC37Bytes": 205956114,
+    "currentC47Bytes": 190264771,
+    "reductionPercent": 7.618779892108471,
+    "scope": "macOS arm64 ditto ZIP; download size only"
+  }
 }

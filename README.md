@@ -1,24 +1,22 @@
 # Xiaoxin T3 Code · 小新定制版
 
-**源码更新到 C47；当前可下载的社区正式安装包：C37 · 双界面风格。** 在「外观 → 界面」切换当前风格 / macOS 风格；适用于 Apple Silicon Mac。
+**当前社区正式版：C47 · 额度修正、轻量动效与双皮肤。** 适用于 Apple Silicon Mac。
 
-[下载 C37 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [安装与验证范围](docs/community/c37/RELEASE.zh.md) · [English](README.en.md)
+[下载 C47 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [安装与验证范围](docs/community/c47/RELEASE.zh.md) · [English](README.en.md)
 
-C37 是小新社区发行编号，基于上游 `0.1.7-nightly.20261103.4119`。社区正式发布与上游的版本通道分别标注；已知限制见发行说明。
+C47 为社区发行编号；内嵌上游 `0.1.7-nightly.20261103.4119` 并定向适配后续修正，不冒充官方 v0.1.9。源码、安装包与构建记录一起提供。
 
 <a id="feature-showcase"></a>
 
 <!-- showcase:overview -->
 
-![C37 实际工作台：中文对话、任务步骤与上下文入口](assets/community/c37/01-workbench.png)
+![C47 更新总览：数据、改动与真实界面](assets/community/c47/01-update-card-A.png)
 
-_C37 实际编译界面，使用独立示例项目与对话；截图未重绘。_
+_C47 更新长图：实测数据、具体改动与实际 ZIP 解压应用截图。原有图库继续保留，历史截图各自标明版本。_
 
-## C47 源码更新：更轻的动效，更可靠的额度状态
+## C47 更新：更轻的动效，更可靠的额度状态
 
-**C47 源码已更新，维护者本机安装与运行验证通过；当前公开安装包仍为下方 C37。** 上游内核沿用 `0.1.7-nightly.20261103.4119` 并定向适配后续补丁；不是官方最新稳定版，也不冒充上游 `v0.1.9`。
-
-![C47 实测数据：C45 动效隔离对比与 C47 空闲 CPU](assets/community/c47/01-update-card-A.png)
+**C47 源码、可下载安装包和构建证明已一起更新。** 上游内核沿用 `0.1.7-nightly.20261103.4119` 并定向适配后续补丁；不是官方最新稳定版，也不冒充上游 `v0.1.9`。
 
 _白底蓝黑发布长图：数字与柱图按实测值排版，嵌入真实原生应用截图。以下两项降幅只针对动效组件隔离测试，不是整应用、整机或相对官方的提速。_
 
@@ -27,7 +25,7 @@ _白底蓝黑发布长图：数字与柱图按实测值排版，嵌入真实原�
 | 工作动效 · 渲染进程 CPU 均值 | 4.175% |     1.175% | **下降 71.86%** |
 | 工作动效 · GPU 进程 CPU 均值 | 7.675% |     4.425% | **下降 42.35%** |
 
-同一 Chromium 窗口、2 种配色 × 2 轮、每次 8 秒，取 4 次均值。GPU 一行是 GPU **进程的 CPU 使用率**，不是显卡利用率。C47 客户端文件与受测 C46 实现逐字节一致。安装后另做严格空闲验证：65 个样本，中位数 **1.0%**、P95 **1.2%**；它与上面的工作动效测试属于不同场景。
+同一 Chromium 窗口、2 种配色 × 2 轮、每次 8 秒，取 4 次均值。GPU 一行是 GPU **进程的 CPU 使用率**，不是显卡利用率。C47 公开客户端已由最终源码重建；受测动效组件的格式归一化 CSS 和逻辑保持一致。安装后另做严格空闲验证：65 个样本，中位数 **1.0%**、P95 **1.2%**；它与上面的工作动效测试属于不同场景。
 
 ### 上一个公开版本 C37 → C47
 
@@ -54,6 +52,12 @@ C37 的旧 CPU 窗口无效，不能拿 4.9% 与本轮 1.0% 计算“整应用�
 [查看长图中原始界面截图](assets/community/c47/02-themes-native.png)
 
 _长图已包含真实 C47 原生应用界面，使用独立示例环境；原始截图可单独打开。下面原有 9 项功能展示完整保留，并继续标明各自截图版本。_
+
+### 工作台总览 · C37 历史界面
+
+![C37 实际工作台：中文对话、任务步骤与上下文入口](assets/community/c37/01-workbench.png)
+
+_C37 实际编译界面与独立示例，保留作历史功能展示；当前 C47 变化见上方长图。_
 
 ## 特色功能，看图了解
 
@@ -141,19 +145,18 @@ _C37 实际中文外观设置，展示当前风格 / macOS 风格两个选择。
 
 ## 下载与使用
 
-- **C37 社区正式版：** [下载 Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103)，查看 [C37 安装说明](docs/community/c37/RELEASE.zh.md)。仅手动更新；使用过 C37 的数据请继续用兼容新版，不能直接改用下方 C31。
-- **旧正式版 C31 · Mac Apple Silicon：** 从 [C31 历史发行页](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) 获取 `Xiaoxin-T3-Code-C31-macOS-arm64.zip`，核对页面提供的 SHA-256。
-- **Windows x64：** [C31-W1 测试版](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows 源码与示意图](https://github.com/zds-xiaoxin/xiaoxin-t3code/tree/community/windows-c31-w1)。Windows 测试版与 Mac 正式推荐版分别发布。
-- 替换 Mac 应用前请结束任务并退出 T3，保留旧应用供回退。不要删除或重置聊天、登录和配置目录；各模型使用你自己的 CLI 与登录。
-- Mac 包为 ad-hoc 签名，尚未经过 Apple 公证。适用平台、安装方法和验证范围分别见对应的 C37 / C31 说明。
+- **C47 · Mac Apple Silicon：** [下载最新 ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c47-macos-20261111)，核对发行页 `SHA256SUMS.txt`；[安装与验证说明](docs/community/c47/RELEASE.zh.md)提供源码提交、签名和恢复边界。仅手动更新。
+- **上一个公开 Mac 版 C37：** [历史发行](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103)。C47 使用 schema79，C37 为 schema78；不要用旧应用打开升级后的数据。
+- **更早 Mac C31：** [历史与回退参考](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031)。不要用旧备份覆盖升级后新增的聊天。
+- **Windows x64：** [已有 C35-W2 测试版](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c35-windows-test-20261102)。本轮 C47 安装包仅覆盖 Mac Apple Silicon，未发行新的 Windows / Intel Mac / Linux 包。
+- 升级前结束任务并完全退出，冷备份聊天、登录和配置，保留旧 App；新用户使用自己的 CLI 与账号。包内不含维护者的个人数据。
+- 发布包为 ad-hoc 签名，未经过 Apple 公证。按系统“隐私与安全性”提示处理，无需关闭系统整体安全保护或授予完全磁盘访问。
 
 ## 验证与已知事项
 
-C37 的双风格、打包与验收范围见 [C37 验证说明](docs/community/c37/RELEASE.zh.md)；严格空闲 CPU 窗口仍待确认。
+C47 ZIP 约190.3MB，比公开 C37 的206.0MB减少7.62%（同架构 ZIP，十进制MB；不是运行速度）。ZIP CRC、164个文件哈希/权限、14个符号链接、解压后严格签名、隐私扫描和隔离原生启动均通过；原生终端模块成功加载并运行示例 shell。
 
-以下验证仅适用于旧正式版 C31：其应用文件与维护者当时在用的 C31 逐文件一致。相同应用已经通过 Mac 新会话第一轮、同会话第二轮无需刷新回复，以及先前失败会话读回验证；本次发布副本另通过隔离启动、签名、ZIP 完整性和文件哈希核对。
-
-233 个相关测试、20 项 React Compiler 检查、7 个包类型检查通过。源码仍有格式、lint 和 knip 遗留项，全部列在 [C31 说明](docs/community/c31/RELEASE.zh.md)。当前推荐发行状态不代表所有供应商、所有尺寸或所有场景均已验证。
+[构建与验收记录](docs/community/c47/RELEASE.zh.md) · [测量方法与可复现实例](docs/community/c47/BENCHMARK.zh.md) · [源码 CI 实时结果](https://github.com/zds-xiaoxin/xiaoxin-t3code/actions/runs/43033315668)。未使用真实账号或付费模型做发行验收；真实额度耗尽/恢复及可选 T3 Connect 登录仍有独立验证边界。
 
 ## 历史与来源
 

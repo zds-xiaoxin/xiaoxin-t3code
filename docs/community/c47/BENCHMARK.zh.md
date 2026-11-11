@@ -16,7 +16,7 @@ These results describe a local build, a narrowly isolated UI component and three
 
 ## Component experiment
 
-The same headful Chromium page alternated the shipped C45 activity-strip CSS/markup with the optimized C46 implementation. Viewport900×700 CSS px, scale2; Harbor and Mist; two rounds per skin; 1.5s settling plus8s sampling. Process CPU time deltas from CDP SystemInfo were divided by elapsed seconds. Pooling the four observations per version gives renderer4.175→1.175% and GPU-process CPU7.675→4.425%. Reductions are71.8563% and42.3453%, rounded to72%/42% in the poster. Raw observations are in strip-cpu-raw.json. The installed C47 uses byte-identical C46 client assets. Small samples, background load, browser/GPU configuration and hardware can change these values. No energy, battery-life, throughput or whole-app improvement was measured.
+The same headful Chromium page alternated the shipped C45 activity-strip CSS/markup with the optimized C46 implementation. Viewport900×700 CSS px, scale2; Harbor and Mist; two rounds per skin; 1.5s settling plus8s sampling. Process CPU time deltas from CDP SystemInfo were divided by elapsed seconds. Pooling the four observations per version gives renderer4.175→1.175% and GPU-process CPU7.675→4.425%. Reductions are71.8563% and42.3453%, rounded to72%/42% in the poster. Raw observations are in strip-cpu-raw.json. The final public web assets were rebuilt and differ in hash; the measured component logic and normalized CSS remain equivalent. Small samples, background load, browser/GPU configuration and hardware can change these values. No energy, battery-life, throughput or whole-app improvement was measured.
 
 ## Installed idle window
 

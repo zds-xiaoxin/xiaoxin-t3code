@@ -1,24 +1,22 @@
 # Xiaoxin T3 Code · Community Edition
 
-**Source updated to C47; current downloadable community installer: C37 · two interface styles.** Choose Current style or macOS style in Appearance → Interface. For Apple Silicon Mac.
+**Current community release: C47 · quota fixes, lighter motion and two desktop skins.** For Apple Silicon Mac.
 
-[Download C37 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [Installation and validation scope](docs/community/c37/RELEASE.en.md) · [简体中文](README.md)
+[Download C47 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [Installation and validation scope](docs/community/c47/RELEASE.en.md) · [简体中文](README.md)
 
-C37 is the Xiaoxin community release number, based on upstream `0.1.7-nightly.20261103.4119`. Community release status and the upstream version channel are stated separately; see the release notes for known limits.
+C47 is the community release number; embedded upstream version remains `0.1.7-nightly.20261103.4119` with selected later fixes, not upstreamv0.1.9. Current source, installer and build provenance are supplied together.
 
 <a id="feature-showcase"></a>
 
 <!-- showcase:overview -->
 
-![Actual C37 workbench: conversation, task progress and context](assets/community/c37/01-workbench.png)
+![C47 update: data, changes and actual interface](assets/community/c47/01-update-card-A.png)
 
-_Actual C37 compiled UI with an isolated sample project and conversation; no UI redraw._
+_C47 release card: measured data, concrete changes and an authentic screenshot of the application extracted from the actual ZIP. Previous gallery images remain version-labelled._
 
-## C47 source update: lighter motion, more reliable quota state
+## C47 update: lighter motion, more reliable quota state
 
-**C47 source is updated and the maintainer's installation/runtime checks passed; the public installer below remains C37.** Its embedded upstream version remains `0.1.7-nightly.20261103.4119` with selected later patches. It does not claim to be upstream stable `v0.1.9`.
-
-![C47 measured component CPU comparison and installed idle verification](assets/community/c47/01-update-card-A.png)
+**C47 source, downloadable installer and build provenance are updated together.** Its embedded upstream version remains `0.1.7-nightly.20261103.4119` with selected later patches. It does not claim to be upstream stable `v0.1.9`.
 
 _White/black/cobalt release card with data-exact plots and an authentic native screenshot. The two reductions describe an isolated activity-strip component, not whole-app, whole-system or upstream-relative performance._
 
@@ -27,7 +25,7 @@ _White/black/cobalt release card with data-exact plots and an authentic native s
 | Working strip: mean renderer CPU    | 4.175% |             1.175% | **71.86% lower** |
 | Working strip: mean GPU-process CPU | 7.675% |             4.425% | **42.35% lower** |
 
-Same headful Chromium window; two skins × two rounds; 8 seconds per sample; mean of four samples per version. GPU-process CPU is not GPU utilization. C47 client files are byte-identical to the measured C46 implementation. Separately, the installed C47 renderer passed an idle window of 65 samples: median **1.0%**, P95 **1.2%**. These are different workloads.
+Same headful Chromium window; two skins × two rounds; 8 seconds per sample; mean of four samples per version. GPU-process CPU is not GPU utilization. C47 public client assets were rebuilt from final source; normalized component CSS and logic retain the measured implementation. Separately, the installed C47 renderer passed an idle window of 65 samples: median **1.0%**, P95 **1.2%**. These are different workloads.
 
 ### Previous public C37 → C47
 
@@ -54,6 +52,12 @@ Fixtures cover unified windows without top-level utilization, a rejected event w
 [Open the original native screenshot embedded in the card](assets/community/c47/02-themes-native.png)
 
 _Unedited packaged native C47 capture with an isolated fixture and no private accounts, balances or chats. All nine previous feature illustrations remain below, with their original version labels._
+
+### Historical C37 workbench overview
+
+![Actual C37 workbench: conversation, task progress and context](assets/community/c37/01-workbench.png)
+
+_Actual C37 compiled UI with an isolated fixture, retained as historical feature coverage. Current C47 changes are shown in the card above._
 
 ## See the workbench features
 
@@ -141,19 +145,18 @@ _Actual C37 Chinese Appearance settings showing Current style / macOS style._
 
 ## Download and use
 
-- **C37 community release:** [Apple Silicon ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103) and [C37 installation notes](docs/community/c37/RELEASE.en.md). Updates are manual. Do not open data already upgraded by C37 with C31.
-- **Previous stable C31 · Apple Silicon Mac:** download `Xiaoxin-T3-Code-C31-macOS-arm64.zip` from the [C31 historical release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031) and verify its SHA-256.
-- **Windows x64:** [C31-W1 test release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-windows-test-20261031) · [Windows source and concepts](https://github.com/zds-xiaoxin/xiaoxin-t3code/tree/community/windows-c31-w1). Windows testing and the recommended Mac release are published separately.
-- Finish tasks and quit T3 before replacing the Mac application. Retain the previous application for rollback and preserve chats, authentication and configuration. Users supply their own provider CLIs and authentication.
-- The Mac application is ad-hoc signed and not Apple-notarized. See the release notes for supported platforms, installation and verification limits.
+- **C47 · Apple Silicon Mac:** [download the latest ZIP](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c47-macos-20261111), verify SHA256SUMS.txt and read the [installation/provenance notes](docs/community/c47/RELEASE.en.md). Updates are manual.
+- **Previous public Mac C37:** [historical release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c37-macos-test-20261103). C47schema79 supersedes C37schema78; do not open upgraded data with the older app.
+- **Earlier Mac C31:** [history and rollback reference](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c31-20261031). Never overwrite new chats with an old database.
+- **Windows x64:** [existing C35-W2 test release](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/tag/xiaoxin-c35-windows-test-20261102). No new C47Windows,IntelMac orLinux binary is claimed.
+- Finish tasks,quit completely,make a cold backup and retain the previous app before upgrading. Users supply their own provider CLI/login. No maintainer personal data is included.
+- Ad-hoc signed,not Apple-notarized. Follow macOS Privacy&Security prompts; do not disable system-wide protections or grant FullDiskAccess merely to install.
 
-## Verification and known issues
+## Verification and known limits
 
-See [C37 validation notes](docs/community/c37/RELEASE.en.md) for its styles, packaging and acceptance scope; strict idle CPU acceptance remains unconfirmed.
+The C47 ZIP is190.3decimalMB versus publicC37's206.0MB(-7.62%), same architecture/archive format,not runtime speed. CRC,164regular-file hashes/modes,14symlink targets,extracted strict signature,privacy scanning and isolated native startup passed. The native PTY loaded and spawned a fixture shell.
 
-The following evidence applies only to the previous stable C31: its files matched the maintainer's then-installed C31 byte for byte. That same application passed real Mac first/second-turn reply visibility without refresh and readback of a formerly failed thread. The distribution additionally passed isolated startup, signature, ZIP integrity and member-hash checks.
-
-233 focused tests,20 React Compiler checks and typechecks for7 packages passed. Formatting, lint and knip findings remain documented in the C31 notes. Recommended release status does not establish every-provider, every-size or universal scenario coverage.
+[Release validation](docs/community/c47/RELEASE.en.md) · [Methods and reproducible fixtures](docs/community/c47/BENCHMARK.en.md) · [Live source CI](https://github.com/zds-xiaoxin/xiaoxin-t3code/actions/runs/43033315668). No real account or paid model was used in this distribution acceptance. Live quota exhaustion/reset and optional T3Connect login remain separately scoped.
 
 ## History and upstream
 

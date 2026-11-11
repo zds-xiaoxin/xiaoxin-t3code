@@ -16,9 +16,9 @@
   "features": [
     {
       "id": "overview",
-      "image": "assets/community/c37/01-workbench.png",
-      "kind": "isolated-runtime",
-      "source": "C37 compiled real web UI served by the isolated packaged server; synthetic public project/messages; unedited screenshot on macOS; not a native-window capture"
+      "image": "assets/community/c47/01-update-card-A.png",
+      "kind": "release-card-with-native-screenshot",
+      "source": "Owner-approved white/black/cobalt release layout; data-exact plots; unedited native screenshot from the actual extracted C47 public ZIP; old nine gallery pictures retained separately"
     },
     {
       "id": "allowances",
