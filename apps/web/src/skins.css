@@ -138,7 +138,11 @@ html[data-theme-id="harbor"] .skin-activity-fx {
     radial-gradient(1px 1px at 52% 35%, #fff 50%, transparent),
     radial-gradient(1px 1px at 71% 65%, #ffe2a8 50%, transparent),
     radial-gradient(1px 1px at 88% 40%, #fff 50%, transparent),
-    radial-gradient(40% 140% at 80% 50%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%);
+    radial-gradient(
+      40% 140% at 80% 50%,
+      color-mix(in oklab, var(--primary) 12%, transparent),
+      transparent 70%
+    );
 }
 
 html[data-theme-id="harbor"] .skin-activity-done {
@@ -148,9 +152,21 @@ html[data-theme-id="harbor"] .skin-activity-done {
 /* 晨雾 Mist: a still, soft fog. */
 html[data-theme-id="mist"] .skin-activity-fx {
   background:
-    radial-gradient(40% 140% at 20% 50%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%),
-    radial-gradient(35% 140% at 60% 50%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%),
-    radial-gradient(30% 140% at 90% 50%, color-mix(in oklab, var(--primary) 15%, transparent), transparent 70%);
+    radial-gradient(
+      40% 140% at 20% 50%,
+      color-mix(in oklab, var(--primary) 18%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      35% 140% at 60% 50%,
+      color-mix(in oklab, var(--primary) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      30% 140% at 90% 50%,
+      color-mix(in oklab, var(--primary) 15%, transparent),
+      transparent 70%
+    );
 }
 
 @keyframes skin-band-in {

@@ -460,7 +460,9 @@ export function ArtifactWall({
                           {a.kind === "image" ? (
                             <button
                               type="button"
-                              aria-label={isPicked ? `取消选择 ${a.name}` : `选择 ${a.name} 用于对比`}
+                              aria-label={
+                                isPicked ? `取消选择 ${a.name}` : `选择 ${a.name} 用于对比`
+                              }
                               aria-pressed={isPicked}
                               onClick={() => togglePick(a)}
                               className={cn(
@@ -751,7 +753,9 @@ export function ArtifactWall({
                           type="button"
                           key={mode}
                           aria-pressed={on}
-                          onClick={() => (mode === "single" ? setComparison(null) : setCompareMode(mode))}
+                          onClick={() =>
+                            mode === "single" ? setComparison(null) : setCompareMode(mode)
+                          }
                           className={cn(
                             "rounded-full px-3 py-1 text-xs transition",
                             on

@@ -47,10 +47,7 @@
   "themes": {
     "officialV019": 5,
     "C47": 7,
-    "additionalDesktopSkins": [
-      "harbor",
-      "mist"
-    ]
+    "additionalDesktopSkins": ["harbor", "mist"]
   },
   "privacy": "Synthetic replay values only. No customer chats, accounts or credentials."
 }

@@ -12,7 +12,8 @@ const scenarios = [
         status: "rejected",
         unifiedWindows: { five_hour: { utilization: 1, resetsAt: 1_900_000_000 } },
       };
-      return implementation.claudeRateLimitEventToUpdate(event as never, names)
+      return implementation
+        .claudeRateLimitEventToUpdate(event as never, names)
         ?.windows?.some((window) => window.id === "five_hour" && window.usedPercent === 100);
     },
   },
@@ -20,7 +21,8 @@ const scenarios = [
     name: "rejected five-hour event omits utilization",
     accepts: (implementation: typeof official) => {
       const event = { rateLimitType: "five_hour", status: "rejected" };
-      return implementation.claudeRateLimitEventToUpdate(event as never, names)
+      return implementation
+        .claudeRateLimitEventToUpdate(event as never, names)
         ?.windows?.some((window) => window.id === "five_hour" && window.usedPercent === 100);
     },
   },
@@ -35,8 +37,10 @@ const scenarios = [
           rate_limits: { five_hour: { utilization: 89, resets_at: "2026-07-18T14:39:00Z" } },
         },
       };
-      return implementation.claudeUsageResponseToLimits(input as never).limits.unavailable
-        ?.reason === "probeFailed";
+      return (
+        implementation.claudeUsageResponseToLimits(input as never).limits.unavailable?.reason ===
+        "probeFailed"
+      );
     },
   },
 ];

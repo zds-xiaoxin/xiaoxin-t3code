@@ -22,30 +22,30 @@ _Actual C37 compiled UI with an isolated sample project and conversation; no UI 
 
 _White/black/cobalt release card with data-exact plots and an authentic native screenshot. The two reductions describe an isolated activity-strip component, not whole-app, whole-system or upstream-relative performance._
 
-| Compared with local C45 | C45 | C47 implementation | Change |
-| --- | ---: | ---: | ---: |
-| Working strip: mean renderer CPU | 4.175% | 1.175% | **71.86% lower** |
-| Working strip: mean GPU-process CPU | 7.675% | 4.425% | **42.35% lower** |
+| Compared with local C45             |    C45 | C47 implementation |           Change |
+| ----------------------------------- | -----: | -----------------: | ---------------: |
+| Working strip: mean renderer CPU    | 4.175% |             1.175% | **71.86% lower** |
+| Working strip: mean GPU-process CPU | 7.675% |             4.425% | **42.35% lower** |
 
 Same headful Chromium window; two skins × two rounds; 8 seconds per sample; mean of four samples per version. GPU-process CPU is not GPU utilization. C47 client files are byte-identical to the measured C46 implementation. Separately, the installed C47 renderer passed an idle window of 65 samples: median **1.0%**, P95 **1.2%**. These are different workloads.
 
 ### Previous public C37 → C47
 
-| Item | Published C37 evidence | C47 evidence |
-| --- | --- | --- |
-| Additional desktop skins | No Harbor / Mist | **2 new skins**, retaining the five original palettes |
-| Strict idle CPU window | Input observations made validity unconfirmed | **65 valid samples passed** |
-| New Claude events and stale cache | This fix was not included | Observation time, multiple windows, rejection and stale startup handling |
+| Item                              | Published C37 evidence                       | C47 evidence                                                             |
+| --------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| Additional desktop skins          | No Harbor / Mist                             | **2 new skins**, retaining the five original palettes                    |
+| Strict idle CPU window            | Input observations made validity unconfirmed | **65 valid samples passed**                                              |
+| New Claude events and stale cache | This fix was not included                    | Observation time, multiple windows, rejection and stale startup handling |
 
 The C37 idle window cannot be compared with the current idle result to claim an 80% whole-app reduction. Test counts are not speed measurements.
 
 ### Compared with upstream v0.1.9
 
-| Verifiable item | Upstream v0.1.9 | C47 |
-| --- | ---: | ---: |
-| Predefined themes in the compared theme directory | 5 | **7, adding Harbor / Mist** |
-| The three selected quota boundary fixtures produce the expected mapper result | 0 / 3 | **3 / 3** |
-| Matched whole-app CPU / throughput benchmark | Not measured | **No claim of outperforming upstream** |
+| Verifiable item                                                               | Upstream v0.1.9 |                                    C47 |
+| ----------------------------------------------------------------------------- | --------------: | -------------------------------------: |
+| Predefined themes in the compared theme directory                             |               5 |            **7, adding Harbor / Mist** |
+| The three selected quota boundary fixtures produce the expected mapper result |           0 / 3 |                              **3 / 3** |
+| Matched whole-app CPU / throughput benchmark                                  |    Not measured | **No claim of outperforming upstream** |
 
 Fixtures cover unified windows without top-level utilization, a rejected event without utilization, and a six-minute-old startup reading. This compares the corresponding pure mappers, not overall provider accuracy, upstream's complete test suite or a live-account end-to-end workflow. Upstream v0.1.9 was published on 2026-11-11; C47 does not claim that core version.
 

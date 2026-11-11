@@ -31,7 +31,9 @@ describe("SkinActivityBand", () => {
     expect(getComputedStyle(label).animationName).toBe("none");
     expect(getComputedStyle(band()!).backdropFilter).toBe("none");
 
-    await screen.rerender(<SkinActivityBand working={false} subagentsSettled={3} subagentsTotal={3} />);
+    await screen.rerender(
+      <SkinActivityBand working={false} subagentsSettled={3} subagentsTotal={3} />,
+    );
     await expect.poll(() => band()?.dataset.state).toBe("done");
     expect(band()!.textContent).toContain("完成");
     expect(document.querySelector(".skin-activity-glint")).toBeNull();
