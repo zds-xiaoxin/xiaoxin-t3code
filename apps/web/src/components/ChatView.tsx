@@ -1,3 +1,4 @@
+import { SimilarThreadsHint } from "./chat/SimilarThreadsHint";
 import { ChildThreadApprovals } from "./chat/ChildThreadApprovals";
 import { workspaceAreaProps } from "../lib/workspaceFocus";
 import { uiText } from "~/i18n";
@@ -278,6 +279,8 @@ import type { MessagesTimelineHistoryControls } from "./chat/MessagesTimeline";
 import { ThreadTimeline } from "./chat/ThreadTimeline";
 import { NativeChildWorkDialog } from "./chat/NativeChildWorkDialog";
 import { ProviderSubagentBar } from "./chat/ProviderSubagentBar";
+import { SkinActivityBand } from "./chat/SkinActivityBand";
+import { deriveThreadTurnSubagents } from "@t3tools/client-runtime/state/thread-subagents";
 import { getTriggerDisplayModelName } from "./chat/providerIconUtils";
 import { resolveScrollToEndClearance } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
@@ -817,6 +820,12 @@ export default function ChatView(props: ChatViewProps) {
     serverProjection === null ? null : deriveRunlessWorkStartedAt(serverProjection);
   const providerSubagentStatus =
     serverProjection === null ? null : deriveProviderSubagentStatus(serverProjection);
+  const skinTurnSubagents =
+    serverProjection === null ? null : deriveThreadTurnSubagents(serverProjection);
+  const skinSubagentsTotal =
+    skinTurnSubagents?.latestTurn === true ? skinTurnSubagents.subagents.length : 0;
+  const skinSubagentsSettled =
+    skinTurnSubagents?.latestTurn === true ? skinTurnSubagents.settledCount : 0;
   const isProviderSubagent =
     serverThread !== null && isProviderNativeSubagentThread(serverThread.source);
   const supportsProviderSwitchingViaHandoff = threadSupportsProviderHandoff(serverProjection);
@@ -3525,6 +3534,17 @@ export default function ChatView(props: ChatViewProps) {
                         : undefined
                     }
                   >
+                    {activeMessageCount === 0 &&
+                    optimisticUserMessages.length === 0 &&
+                    activeProjectRef &&
+                    !activeThread?.latestRun ? (
+                      <SimilarThreadsHint
+                        key={threadId}
+                        target={composerDraftTarget}
+                        current={routeThreadRef}
+                        project={activeProjectRef}
+                      />
+                    ) : null}
                     <ChildThreadApprovals threadRef={activeThreadRef} />
                     <ComposerSurface.Shell contextRow={showComposerContextStrip}>
                       <ComposerSurface.Host
@@ -3590,6 +3610,13 @@ export default function ChatView(props: ChatViewProps) {
                                 contextControlsHost,
                               )
                             : null}
+                          {!composerMounted ? null : (
+                            <SkinActivityBand
+                              working={isWorking}
+                              subagentsSettled={skinSubagentsSettled}
+                              subagentsTotal={skinSubagentsTotal}
+                            />
+                          )}
                           {!composerMounted ? null : (
                             <ChatComposer
                               canOperateThread={canOperateThread}

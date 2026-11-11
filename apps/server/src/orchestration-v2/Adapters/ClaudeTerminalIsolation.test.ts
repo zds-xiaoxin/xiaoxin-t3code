@@ -163,4 +163,49 @@ describe("Claude terminal account isolation", () => {
     ])
       expect(() => isolateClaudeTerminalOptions(root, { ...options, ...extra })).toThrow();
   });
+  it("accepts pnpm links confined to the selected account cache", () => {
+    const { root, options } = fixture();
+    const config = NodeFS.realpathSync(NodePath.join(root, "home/.claude"));
+    const cache = NodePath.join(config, ".t3-terminal/home/.local/share/pnpm");
+    const target = NodePath.join(cache, "store/v11/packages/exe/node_modules/exe");
+    const link = NodePath.join(cache, "store/v11/links/pnpm/node_modules/exe");
+    NodeFS.mkdirSync(target, { recursive: true });
+    NodeFS.mkdirSync(NodePath.dirname(link), { recursive: true });
+    NodeFS.symlinkSync(NodePath.relative(NodePath.dirname(link), target), link);
+    const configured = isolateClaudeTerminalOptions(undefined, {
+      ...options,
+      env: { ...options.env, CLAUDE_CONFIG_DIR: config },
+    });
+    expect(configured.env?.CLAUDE_CONFIG_DIR).toBe(config);
+    expect(isolateClaudeTerminalOptions(undefined, configured)).toEqual(configured);
+  });
+
+  it.each(["escape", "prefix-sibling", "dangling", "cycle", "cache-alias", "other-link"])(
+    "rejects unsafe account cache layout: %s",
+    (kind) => {
+      const { root, options } = fixture();
+      const config = NodeFS.realpathSync(NodePath.join(root, "home/.claude"));
+      const home = NodePath.join(config, ".t3-terminal/home");
+      const cache = NodePath.join(home, ".local/share/pnpm");
+      NodeFS.mkdirSync(cache, { recursive: true });
+      if (kind === "escape") NodeFS.symlinkSync(root, NodePath.join(cache, "escape"));
+      if (kind === "prefix-sibling") {
+        NodeFS.mkdirSync(`${cache}-other`);
+        NodeFS.symlinkSync(`${cache}-other`, NodePath.join(cache, "escape"));
+      }
+      if (kind === "dangling") NodeFS.symlinkSync("missing", NodePath.join(cache, "broken"));
+      if (kind === "cycle") NodeFS.symlinkSync(cache, NodePath.join(cache, "cycle"));
+      if (kind === "cache-alias") {
+        NodeFS.renameSync(cache, `${cache}-actual`);
+        NodeFS.symlinkSync(`${cache}-actual`, cache);
+      }
+      if (kind === "other-link") NodeFS.symlinkSync(cache, NodePath.join(home, "other"));
+      expect(() =>
+        isolateClaudeTerminalOptions(undefined, {
+          ...options,
+          env: { ...options.env, CLAUDE_CONFIG_DIR: config },
+        }),
+      ).toThrow("Claude TUI prototype isolation:");
+    },
+  );
 });

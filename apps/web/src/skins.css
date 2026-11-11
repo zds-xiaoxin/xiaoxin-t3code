@@ -1,0 +1,250 @@
+/* Desktop skins: activity strip + artifact viewer details.
+ * Motion rules (after macOS / Claude / Codex): only transform and opacity animate, so the compositor
+ * moves pre-drawn layers and nothing repaints per frame; loops are seamless (no visible restart);
+ * enter springs, exit eases; idle threads run nothing. Skin art is static. */
+
+:root {
+  --skin-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --skin-ease-in-out: cubic-bezier(0.37, 0, 0.63, 1);
+  --skin-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+}
+
+.skin-activity-anchor {
+  position: relative;
+  height: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.skin-activity-band {
+  position: absolute;
+  inset-inline: 12px;
+  bottom: 6px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-inline: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  background: color-mix(in oklab, var(--background) 94%, var(--foreground));
+  box-shadow: 0 6px 20px -12px color-mix(in oklab, var(--foreground) 35%, transparent);
+  font-size: 11px;
+  color: var(--muted-foreground);
+  transform-origin: 50% 100%;
+  animation: skin-band-in 420ms var(--skin-ease-out) both;
+}
+
+.skin-activity-band[data-state="leaving"] {
+  animation: skin-band-out 280ms var(--skin-ease-in) both;
+}
+
+.skin-activity-label,
+.skin-activity-rail,
+.skin-activity-done {
+  position: relative;
+  z-index: 1;
+}
+
+.skin-activity-label {
+  white-space: nowrap;
+}
+
+/* Claude-style glint, compositor-only: a masked window slides across the label while a bright copy
+ * of the text counter-slides inside it, so the light moves but the glyphs never repaint. Each sweep
+ * eases in and out, then rests off the label, so the restart is never visible. */
+.skin-activity-glint {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
+  mask-image: linear-gradient(90deg, transparent 32%, #000 50%, transparent 68%);
+  animation: skin-glint 2.8s var(--skin-ease-in-out) infinite;
+  will-change: transform;
+}
+
+.skin-activity-glint > span {
+  display: block;
+  color: var(--foreground);
+  animation: skin-glint-counter 2.8s var(--skin-ease-in-out) infinite;
+  will-change: transform;
+}
+
+.skin-activity-rail {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.skin-activity-rail i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0.22;
+  transform: scale(0.85);
+  transition:
+    opacity 360ms var(--skin-ease-out),
+    transform 480ms var(--skin-ease-out);
+}
+
+.skin-activity-rail i[data-done] {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.skin-activity-rail i[data-current] {
+  animation: skin-dot-breathe 1.8s var(--skin-ease-in-out) infinite alternate;
+}
+
+/* Skin backdrop: still art, faded at the edges, shown only while working. */
+.skin-activity-fx {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 500ms var(--skin-ease-in-out);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+}
+
+.skin-activity-band[data-state="working"] .skin-activity-fx {
+  opacity: 1;
+}
+
+.skin-activity-done {
+  margin-left: auto;
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 16;
+  stroke-dashoffset: 16;
+  opacity: 0;
+}
+
+.skin-activity-band[data-state="done"] .skin-activity-done,
+.skin-activity-band[data-state="leaving"] .skin-activity-done {
+  opacity: 1;
+  animation: skin-check-draw 520ms var(--skin-ease-out) 80ms forwards;
+}
+
+/* 星港 Harbor: a still starfield; the completion check glows. */
+html[data-theme-id="harbor"] .skin-activity-fx {
+  background:
+    radial-gradient(1px 1px at 12% 30%, #fff 50%, transparent),
+    radial-gradient(1px 1px at 33% 70%, #cfe0ff 50%, transparent),
+    radial-gradient(1px 1px at 52% 35%, #fff 50%, transparent),
+    radial-gradient(1px 1px at 71% 65%, #ffe2a8 50%, transparent),
+    radial-gradient(1px 1px at 88% 40%, #fff 50%, transparent),
+    radial-gradient(40% 140% at 80% 50%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%);
+}
+
+html[data-theme-id="harbor"] .skin-activity-done {
+  filter: drop-shadow(0 0 4px var(--primary));
+}
+
+/* 晨雾 Mist: a still, soft fog. */
+html[data-theme-id="mist"] .skin-activity-fx {
+  background:
+    radial-gradient(40% 140% at 20% 50%, color-mix(in oklab, var(--primary) 18%, transparent), transparent 70%),
+    radial-gradient(35% 140% at 60% 50%, color-mix(in oklab, var(--primary) 12%, transparent), transparent 70%),
+    radial-gradient(30% 140% at 90% 50%, color-mix(in oklab, var(--primary) 15%, transparent), transparent 70%);
+}
+
+@keyframes skin-band-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
+
+@keyframes skin-band-out {
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.99);
+  }
+}
+
+@keyframes skin-glint {
+  from {
+    transform: translateX(-100%);
+  }
+  60%,
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes skin-glint-counter {
+  from {
+    transform: translateX(100%);
+  }
+  60%,
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes skin-dot-breathe {
+  from {
+    opacity: 0.3;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 0.85;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes skin-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Artifact viewer filmstrip: no system scrollbar, cards that match the app. */
+.artifact-filmstrip {
+  scrollbar-width: none;
+  scroll-behavior: smooth;
+}
+
+.artifact-filmstrip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Paging in the viewer cross-fades the incoming image instead of popping it in. */
+.artifact-viewer-image {
+  animation: artifact-image-in 240ms var(--skin-ease-out) both;
+}
+
+@keyframes artifact-image-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skin-activity-band,
+  .skin-activity-fx,
+  .skin-activity-rail i,
+  .skin-activity-done {
+    animation: none !important;
+    transition: none !important;
+  }
+  .skin-activity-glint {
+    display: none;
+  }
+  .skin-activity-band[data-state="done"] .skin-activity-done,
+  .skin-activity-band[data-state="leaving"] .skin-activity-done {
+    stroke-dashoffset: 0;
+  }
+  .artifact-filmstrip {
+    scroll-behavior: auto;
+  }
+  .artifact-viewer-image {
+    animation: none !important;
+  }
+}

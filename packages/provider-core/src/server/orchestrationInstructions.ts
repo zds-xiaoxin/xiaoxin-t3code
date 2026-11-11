@@ -19,7 +19,7 @@ Ordinary coding tasks need no T3 tools.
 - T3 tools may load late. Try the name once before you call it absent.`,
   `### Visuals and preview
 
-- Show trends, comparisons, and flows as a chart or diagram, even unasked, and any visual the user asks for here: pass its HTML to \`html_preview\`, then \`html_render\`. If the visual is a file, pass that file's HTML. A screenshot on disk or a text description does not show it. Never start a server for it. Tools a web page exposes give data only. Never use them to show results. Asked for an image to post, send, or use elsewhere: a \`.png\` file and its path, never \`html_render\`.
+- Show trends, comparisons, and flows as a chart or diagram, even unasked, and any visual the user asks for here: pass the path to an HTML file, or inline HTML to \`html_preview\`, then \`html_render\`. A screenshot on disk or a text description does not show it. Never start a server for it. Tools a web page exposes give data only. Never use them to show results. Asked for an image to post, send, or use elsewhere: a \`.png\` file and its path, never \`html_render\`.
 - For authorized browser or UI verification, prefer T3 preview tools. Call preview_status, then preview_open if none is attached, before reporting unavailable. Read the page before acting; a human-controlled tab is read-only. Use your own tab for interaction. Preserve logins and user data.`,
 ];
 export const T3_CODE_ORCHESTRATION_INSTRUCTIONS = `

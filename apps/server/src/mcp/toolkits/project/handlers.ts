@@ -1,3 +1,4 @@
+import { memoriesForProject } from "../../../memory/memory.ts";
 import {
   CommandId,
   MessageId,
@@ -82,6 +83,47 @@ const access = Effect.gen(function* () {
   return yield* Project.ProjectService;
 });
 export const layer = McpToolAccess.toLayer(ProjectToolkit, {
+  memory_propose: McpToolAccess.actsAsCaller((input) =>
+    Effect.gen(function* () {
+      const { caller } = yield* readCaller();
+      if (
+        caller === undefined ||
+        (input.scope.kind === "project" && input.scope.projectId !== caller.projectId)
+      )
+        return yield* new OrchestratorMcpFailure({
+          code: "invalid_request",
+          message: "Choose global or the calling thread's project.",
+        });
+      const settings = yield* ServerSettings.ServerSettingsService;
+      const next = yield* settings
+        .updateSettings(
+          {},
+          { type: "propose", text: input.text, scope: input.scope, threadId: caller.id },
+        )
+        .pipe(Effect.mapError(unavailable));
+      return { proposalId: next.memory!.pending.at(-1)!.id, status: "pending" as const };
+    }),
+  ),
+  memory_list: McpToolAccess.readsAsCaller((input) =>
+    Effect.gen(function* () {
+      const { caller } = yield* readCaller();
+      if (
+        caller === undefined ||
+        (input.scope?.kind === "project" && input.scope.projectId !== caller.projectId)
+      )
+        return yield* new OrchestratorMcpFailure({
+          code: "invalid_request",
+          message: "Choose global or the calling thread's project.",
+        });
+      const settings = yield* (yield* ServerSettings.ServerSettingsService).getSettings.pipe(
+        Effect.mapError(unavailable),
+      );
+      return memoriesForProject(
+        settings.memory,
+        input.scope?.kind === "global" ? undefined : caller.projectId,
+      );
+    }),
+  ),
   t3_thread_launch: McpToolAccess.startsThreads(
     (input) => input,
     (input, { runtimeMode, interactionMode, linkOrigin }) =>

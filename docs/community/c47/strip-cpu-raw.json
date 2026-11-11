@@ -1,0 +1,62 @@
+{
+ "harbor:idle": [
+  {
+   "renderer": 0.1,
+   "gpu": 0.2
+  },
+  {
+   "renderer": 0,
+   "gpu": 0.1
+  }
+ ],
+ "harbor:old": [
+  {
+   "renderer": 4.4,
+   "gpu": 7.5
+  },
+  {
+   "renderer": 4.4,
+   "gpu": 7.4
+  }
+ ],
+ "harbor:new": [
+  {
+   "renderer": 1.5,
+   "gpu": 4.6
+  },
+  {
+   "renderer": 1.1,
+   "gpu": 4.4
+  }
+ ],
+ "mist:idle": [
+  {
+   "renderer": 0.1,
+   "gpu": 0.1
+  },
+  {
+   "renderer": 0.1,
+   "gpu": 0.1
+  }
+ ],
+ "mist:old": [
+  {
+   "renderer": 4.4,
+   "gpu": 8.6
+  },
+  {
+   "renderer": 3.5,
+   "gpu": 7.2
+  }
+ ],
+ "mist:new": [
+  {
+   "renderer": 1.1,
+   "gpu": 4.8
+  },
+  {
+   "renderer": 1,
+   "gpu": 3.9
+  }
+ ]
+}

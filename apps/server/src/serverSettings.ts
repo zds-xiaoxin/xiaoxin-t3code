@@ -1,3 +1,6 @@
+import * as DateTime from "effect/DateTime";
+import * as SecureRandom from "effect/crypto/SecureRandom";
+import { applyMemoryMutation, type MemoryMutation } from "./memory/memory.ts";
 import {
   DEFAULT_SERVER_SETTINGS,
   ModelSelection,
@@ -220,6 +223,25 @@ function ensureProviderInstanceMutationAllowed(
   return Effect.void;
 }
 
+const withMemoryMutation = Effect.fn("serverSettings.withMemoryMutation")(function* (
+  settings: ServerSettings,
+  mutation: MemoryMutation | undefined,
+  settingsPath: string,
+) {
+  if (mutation === undefined) return settings;
+  const id = yield* Effect.sync(() => SecureRandom.uuidV4Unsafe({ format: "string" }));
+  const now = DateTime.formatIso(yield* DateTime.now);
+  const memory = yield* Effect.try({
+    try: () =>
+      applyMemoryMutation(settings.memory, mutation, {
+        id,
+        now,
+      }),
+    catch: (cause) => new ServerSettingsError({ settingsPath, operation: "write-file", cause }),
+  });
+  return { ...settings, memory };
+});
+
 export class ServerSettingsService extends Context.Service<
   ServerSettingsService,
   {
@@ -234,6 +256,7 @@ export class ServerSettingsService extends Context.Service<
 
     readonly updateSettings: (
       patch: ServerSettingsPatch,
+      memoryMutation?: MemoryMutation,
     ) => Effect.Effect<ServerSettings, ServerSettingsError>;
 
     readonly updateProviderInstance: (
@@ -294,9 +317,13 @@ const makeTest = Effect.fn("serverSettings.makeTest")(function* (
     start: Effect.void,
     ready: Effect.void,
     getSettings,
-    updateSettings: (patch) =>
+    updateSettings: (patch, memoryMutation) =>
       updateTestSettings((currentSettings) =>
-        Effect.succeed(applyServerSettingsPatch(currentSettings, patch)),
+        withMemoryMutation(
+          applyServerSettingsPatch(currentSettings, patch),
+          memoryMutation,
+          "test settings",
+        ),
       ),
     updateProviderInstance: (mutation, patch = {}) =>
       updateTestSettings((currentSettings) =>
@@ -997,13 +1024,22 @@ const make = Effect.gen(function* () {
 
   const persistSettingsSecrets = (current: ServerSettings, next: ServerSettings) =>
     Effect.sync(() => {
+      // Only sensitive rows own a stored secret; a plain duplicate must not hide one from cleanup.
       const previous = new Map<string, SettingsSecret>();
+      const inlineValues = new Map<string, string>();
       mapSettingsSecrets(current, (secret) => {
+        if (!secret.sensitive) return secret;
         previous.set(secret.secretName, secret);
+        if (!secret.redacted && secret.value.length > 0) {
+          inlineValues.set(secret.secretName, secret.value);
+        }
         return secret;
       });
       const changes: SecretChange[] = [];
       const nextSecretNames = new Set<string>();
+      const keptSecretNames = new Set<string>();
+      const writtenSecretNames = new Set<string>();
+      const inlineWrites = new Map<string, SecretChange>();
       const settings = mapSettingsSecrets(next, (secret) => {
         const metadata = {
           secretName: secret.secretName,
@@ -1018,24 +1054,34 @@ const make = Effect.gen(function* () {
           changes.push({ ...metadata, kind: "remove", operation: "remove-secret" });
           return { value: secret.value, redacted: false };
         }
-        const old = previous.get(secret.secretName);
-        const inlineValue =
-          old?.sensitive && !old.redacted && old.value.length > 0 ? old.value : undefined;
-        const value = secret.redacted ? inlineValue : secret.value;
-        if (value === undefined) {
+        if (secret.redacted) {
+          keptSecretNames.add(secret.secretName);
           nextSecretNames.add(secret.secretName);
+          const inlineValue = inlineValues.get(secret.secretName);
+          if (inlineValue !== undefined) {
+            inlineWrites.set(secret.secretName, {
+              ...metadata,
+              kind: "write",
+              value: textEncoder.encode(inlineValue),
+            });
+          }
           return { value: "", redacted: true };
         }
-        if (value.length === 0) {
+        if (secret.value.length === 0) {
           changes.push({ ...metadata, kind: "remove", operation: "remove-secret" });
           return { value: "", redacted: false };
         }
         nextSecretNames.add(secret.secretName);
-        changes.push({ ...metadata, kind: "write", value: textEncoder.encode(value) });
+        writtenSecretNames.add(secret.secretName);
+        changes.push({ ...metadata, kind: "write", value: textEncoder.encode(secret.value) });
         return { value: "", redacted: true };
       });
+      // A legacy inline value only moves to the store when no row in this save replaces it.
+      for (const [secretName, change] of inlineWrites) {
+        if (!writtenSecretNames.has(secretName)) changes.push(change);
+      }
       for (const secret of previous.values()) {
-        if (!secret.sensitive || nextSecretNames.has(secret.secretName)) continue;
+        if (nextSecretNames.has(secret.secretName)) continue;
         if (changes.some((change) => change.secretName === secret.secretName)) continue;
         changes.push({
           kind: "remove",
@@ -1049,7 +1095,13 @@ const make = Effect.gen(function* () {
             : {}),
         });
       }
-      return { settings, changes };
+      return {
+        settings,
+        // A redacted row still claims its stored secret, so a duplicate row must not remove it.
+        changes: changes.filter(
+          (change) => change.kind === "write" || !keptSecretNames.has(change.secretName),
+        ),
+      };
     });
 
   const rollbackSettingsSecretWrites = (
@@ -1306,10 +1358,16 @@ const make = Effect.gen(function* () {
     start,
     ready: Deferred.await(startedDeferred),
     getSettings: getMaterializedSettings,
-    updateSettings: (patch) =>
+    updateSettings: (patch, memoryMutation) =>
       updateAndPersistSettings(patch, (current) =>
         ensureSecretProviderWritesAllowed(patch, settingsPath).pipe(
-          Effect.as(applyServerSettingsPatch(current, patch)),
+          Effect.andThen(
+            withMemoryMutation(
+              applyServerSettingsPatch(current, patch),
+              memoryMutation,
+              settingsPath,
+            ),
+          ),
         ),
       ),
     updateProviderInstance: (mutation, patch = {}) =>

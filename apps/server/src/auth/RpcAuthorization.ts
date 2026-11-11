@@ -1,3 +1,4 @@
+import { UserMemoryMutation } from "@t3tools/contracts";
 import {
   CLIENT_GUARDED_RPC_SCOPES,
   type DeviceListInput,
@@ -236,15 +237,22 @@ export const rpcAuthorizationError = (requiredScope: AuthEnvironmentScope) =>
 const SettingsUpdate = Schema.Struct({
   patch: ServerSettingsPatch,
   providerInstanceMutation: Schema.optionalKey(ProviderInstanceMutation),
+  memoryMutation: Schema.optionalKey(UserMemoryMutation),
 });
 // Middleware receives the payload already decoded, so it is checked against the decoded shape.
 const decodeSettingsUpdate = Schema.decodeUnknownSync(Schema.toType(SettingsUpdate));
 
 const requiredScopesForSettingsUpdate = (payload: unknown) => {
   const input = decodeSettingsUpdate(payload);
-  const scopes = requiredScopesForServerSettingsPatch(input.patch);
+  const scopes = [
+    ...new Set([
+      ...requiredScopesForServerSettingsPatch(input.patch),
+      ...(input.memoryMutation === undefined ? [] : [AuthSettingsWriteScope]),
+    ]),
+  ];
   if (input.providerInstanceMutation === undefined) return scopes;
-  return Object.values(input.patch).every((value) => value === undefined)
+  return input.memoryMutation === undefined &&
+    Object.values(input.patch).every((value) => value === undefined)
     ? [AuthProvidersManageScope]
     : [...new Set([...scopes, AuthProvidersManageScope])];
 };

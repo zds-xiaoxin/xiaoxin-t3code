@@ -55,8 +55,10 @@ export function continuationHandoffPath(
   firstUserText: string | undefined,
   lastAssistantText: string | undefined,
 ) {
+  const source = firstUserText?.match(/^交接文件：([^\r\n]+)$/mu)?.[1];
   const match = firstUserText?.match(/。先完整读取 (.+)，按其中未完成事项继续；/u);
   return (
+    (source ? parseHandoffPath(`HANDOFF: ${source}`) : null) ??
     (match ? parseHandoffPath(`HANDOFF: ${match[1]}`) : null) ??
     parseHandoffPath(lastAssistantText ?? "")
   );

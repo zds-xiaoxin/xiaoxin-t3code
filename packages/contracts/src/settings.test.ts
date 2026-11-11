@@ -40,6 +40,24 @@ const encodeServerSettings = Schema.encodeSync(ServerSettings);
 const encodeServerSettingsPatch = Schema.encodeSync(ServerSettingsPatch);
 const decodeClaudeSettings = Schema.decodeUnknownSync(ClaudeSettings);
 
+describe("provider quota fallback", () => {
+  it("defaults missing settings off and round-trips the configured chain and billing label", () => {
+    expect(decodeServerSettings({}).providerFallbackEnabled).toBe(false);
+    expect(decodeServerSettings({}).providerFallbackChains).toEqual({});
+    const settings = decodeServerSettings({
+      providerFallbackEnabled: true,
+      providerFallbackChains: { codex: ["fx"] },
+      providerInstances: { fx: { driver: "fx", billingMode: "metered" } },
+    });
+    const restored = decodeServerSettings(encodeServerSettings(settings));
+    expect(restored.providerFallbackChains).toEqual({ codex: ["fx"] });
+    expect(Object.values(restored.providerInstances)[0]?.billingMode).toBe("metered");
+    expect(decodeServerSettingsPatch({ providerFallbackEnabled: false })).toEqual({
+      providerFallbackEnabled: false,
+    });
+  });
+});
+
 describe("image revision preference", () => {
   it("keeps existing installations off and round-trips an explicit choice", () => {
     expect(decodeClientSettings({}).artifactRevisionEnabled).toBe(false);

@@ -126,4 +126,14 @@ describe("partitionProjects", () => {
     const unpinned = partitionProjects({ ...input, pinned: [] });
     expect(names(unpinned.recent)).toContain("新");
   });
+  it("also pins projects pinned on the server, ahead of local pins", () => {
+    const sections = partitionProjects({
+      ...input,
+      projects: projects.map((project) =>
+        project.displayName === "空" ? { ...project, pinned: true } : project,
+      ),
+      pinned: [{ key: "p:置顶A", at: 1 }],
+    });
+    expect(names(sections.pinned)).toEqual(["空", "置顶A"]);
+  });
 });

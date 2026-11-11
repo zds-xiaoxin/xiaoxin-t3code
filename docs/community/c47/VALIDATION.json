@@ -1,0 +1,37 @@
+{
+  "sourceUpdate": "C47 with publication-only unused-export cleanup",
+  "localQuotaRegression": {
+    "files": 2,
+    "tests": 17,
+    "passed": true
+  },
+  "checkChanged": {
+    "comparison": "local ea8fe0d HEAD plus4 quota files",
+    "format": "passed",
+    "lint": "passed",
+    "graphql": "passed",
+    "typecheckPackages": 3,
+    "tests": 18,
+    "testFiles": 3,
+    "testsPassed": true,
+    "knipFilesAndDependencies": "reports2generated local Cursor SDK JavaScript files not included in upload, and2unchanged relay devDependencies",
+    "knipExports": "Three unused exports made private; targeted apps/web and packages/shared export check passed"
+  },
+  "installerProtectionTests": 12,
+  "installedRuntimeAndDataReadback": "passed",
+  "installedIdle": {
+    "validWindow": true,
+    "samples": 65,
+    "medianCpuPercent": 1.0,
+    "p95CpuPercent": 1.2
+  },
+  "fullCi": "pending after source push",
+  "publicBinaryRelease": "not included; existing downloadable release remains C37",
+  "testCountsOverlap": "Do not sum regression and check:changed counts; they overlap.",
+  "publicationCleanup": {
+    "format": "passed",
+    "lint": "passed",
+    "knipTargetedExports": "passed",
+    "installedAppModified": false
+  }
+}

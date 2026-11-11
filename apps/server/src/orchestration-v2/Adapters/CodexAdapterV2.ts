@@ -1292,6 +1292,7 @@ export class CodexAppServerClientFactory extends Context.Service<
 >()("t3/orchestration-v2/Adapters/CodexAdapterV2/CodexAppServerClientFactory") {}
 /** MCP startup grace in milliseconds; the 1 s default excludes cold npx/uvx servers from the first model request. */
 export const CODEX_THREAD_CONFIG = {
+  "features.concurrent_reasoning_summaries": true,
   "tools.update_plan.enabled": true,
   mcp_optional_startup_grace_ms: 10000,
 } as const;

@@ -64,12 +64,34 @@ function real(path: string) {
   }
 }
 
-function rejectLinks(directory: string) {
-  for (const entry of NodeFS.readdirSync(directory, { withFileTypes: true })) {
-    const path = NodePath.join(directory, entry.name);
-    if (entry.isSymbolicLink()) fail("sandbox symlinks are not supported");
-    if (entry.isDirectory()) rejectLinks(path);
+function rejectLinks(directory: string, packageCache?: string) {
+  const active = new Set<string>();
+  const checked = new Set<string>();
+  function visit(directory: string) {
+    if (active.has(directory)) fail("package cache symlinks cannot form directory cycles");
+    if (checked.has(directory)) return;
+    active.add(directory);
+    for (const entry of NodeFS.readdirSync(directory, { withFileTypes: true })) {
+      const path = NodePath.join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        // pnpm links cached packages to each other. Keep that exception inside its cache;
+        // account paths and every other sandbox link retain the strict rejection rule.
+        if (!packageCache || path === packageCache || !within(packageCache, path))
+          return fail("sandbox symlinks are not supported outside the package cache");
+        let target: string;
+        try {
+          target = NodeFS.realpathSync(path);
+        } catch {
+          return fail("package cache symlinks must resolve to an existing target");
+        }
+        if (!within(packageCache, target)) fail("package cache symlinks cannot escape the cache");
+        if (NodeFS.statSync(target).isDirectory()) visit(target);
+      } else if (entry.isDirectory()) visit(path);
+    }
+    active.delete(directory);
+    checked.add(directory);
   }
+  visit(directory);
 }
 
 export function isolateClaudeTerminalOptions(
@@ -215,7 +237,7 @@ function isolateSelectedAccount(options: Options): Options {
     NodeFS.mkdirSync(directory, { recursive: true, mode: 0o700 });
   }
   const home = real(NodePath.join(root, "home"));
-  rejectLinks(home);
+  rejectLinks(home, NodePath.join(home, ".local/share/pnpm"));
   const temp = real(NodePath.join(root, "tmp"));
   const cwd = real(options.cwd ?? process.cwd());
   if (options.resumeSessionAt || options.forkSession || options.hooks || options.plugins?.length)

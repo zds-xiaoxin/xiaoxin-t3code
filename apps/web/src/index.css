@@ -3,6 +3,7 @@
 @import "tailwindcss";
 @import "./liquidGlass.css";
 @import "./windowsProfile.css";
+@import "./skins.css";
 
 @custom-variant dark (&:is(.dark, .dark *));
 @custom-variant light (&:not(.dark, .dark *));
@@ -908,7 +909,77 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     --stage-night-line: color-mix(in oklch, var(--stage-art-line) 82%, oklch(1 0 0));
   }
 
+  html[data-theme-id="harbor"] {
+    --stage-art-top: #5b7fb8;
+    --stage-art-mid: #36578f;
+    --stage-art-bottom: #1d3460;
+    --stage-art-highlight: #fff1d6;
+    --stage-art-secondary: #8fb0de;
+    --stage-art-tertiary: #ffbe5a;
+    --stage-art-line: #ffe7b8;
+    --stage-night-top: #2a4a7f;
+    --stage-night-mid: #1d3a6b;
+    --stage-night-bottom: #0f1f3d;
+    --stage-night-highlight: #ffd38a;
+    --stage-night-secondary: #6f8fc6;
+    --stage-night-tertiary: #ffbe5a;
+    --stage-night-line: #ffe2a8;
+
+    @variant dark {
+      --stage-art-top: #2a4a7f;
+      --stage-art-mid: #1d3a6b;
+      --stage-art-bottom: #0f1f3d;
+      --stage-art-highlight: #ffd38a;
+      --stage-art-secondary: #6f8fc6;
+      --stage-art-tertiary: #ffbe5a;
+      --stage-art-line: #ffe2a8;
+      --stage-night-top: #1b3159;
+      --stage-night-mid: #132648;
+      --stage-night-bottom: #0a1529;
+      --stage-night-highlight: #ffcf7a;
+      --stage-night-secondary: #56739f;
+      --stage-night-tertiary: #f0a93f;
+      --stage-night-line: #ffd99a;
+    }
+  }
+
+  html[data-theme-id="mist"] {
+    --stage-art-top: #dbe8f5;
+    --stage-art-mid: #a9c4e4;
+    --stage-art-bottom: #6f95c9;
+    --stage-art-highlight: #ffffff;
+    --stage-art-secondary: #c2d6ee;
+    --stage-art-tertiary: #eadcbc;
+    --stage-art-line: #f6f9fc;
+    --stage-night-top: #8faed6;
+    --stage-night-mid: #6a8dbd;
+    --stage-night-bottom: #46689a;
+    --stage-night-highlight: #eef4fb;
+    --stage-night-secondary: #a9c4e4;
+    --stage-night-tertiary: #d9c9a3;
+    --stage-night-line: #e6eef8;
+
+    @variant dark {
+      --stage-art-top: #4a6588;
+      --stage-art-mid: #33496a;
+      --stage-art-bottom: #1c2a40;
+      --stage-art-highlight: #dce8f7;
+      --stage-art-secondary: #6b8fbf;
+      --stage-art-tertiary: #c9b48a;
+      --stage-art-line: #e6eef8;
+      --stage-night-top: #33496a;
+      --stage-night-mid: #24364f;
+      --stage-night-bottom: #141f30;
+      --stage-night-highlight: #c8d9ef;
+      --stage-night-secondary: #55759f;
+      --stage-night-tertiary: #b39f75;
+      --stage-night-line: #d6e2f2;
+    }
+  }
+
   :is(
+    html[data-theme-id="harbor"],
+    html[data-theme-id="mist"],
     html[data-theme-id="t3-chat"],
     html[data-theme-id="grove"],
     html[data-theme-id="ocean"],

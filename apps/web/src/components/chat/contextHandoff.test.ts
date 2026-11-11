@@ -128,9 +128,27 @@ describe("continuation parameters", () => {
       continuationOfThreadId: "old-thread",
       title: "虚构项目（续）",
     });
-    expect(result.prompt).toBe(
-      "接手旧会话《虚构项目》（old-thread）。先完整读取 /tmp/demo worktree/HANDOFF.md，按其中未完成事项继续；已验证的部分不要重做。",
+    expect(result.shouldStart).toBe(false);
+    expect(result.prompt).toContain("交接文件：/tmp/demo worktree/HANDOFF.md");
+    expect(result.prompt).toContain("本次只接收交接");
+    expect(result.prompt).not.toContain("按其中未完成事项继续");
+  });
+  it("starts only for explicit nonblank instructions, with no historical todo authorization", () => {
+    expect(continuationParameters(source, ThreadId.make("new"), null, "  \n ").shouldStart).toBe(
+      false,
     );
+    const explicit = continuationParameters(
+      source,
+      ThreadId.make("new"),
+      "/tmp/HANDOFF.md",
+      "只复核B方案，不修改文件",
+    );
+    expect(explicit.shouldStart).toBe(true);
+    expect(explicit.prompt).toContain("只复核B方案，不修改文件");
+    expect(explicit.prompt).toContain("其他待办、建议及旧授权不构成本次继续授权");
+    const fallback = continuationParameters(source, ThreadId.make("new"), null);
+    expect(fallback.shouldStart).toBe(false);
+    expect(fallback.prompt).not.toContain("再按未完成事项继续");
   });
   it("makes missing context explicit", () =>
     expect(continuationParameters(source, ThreadId.make("new"), null).prompt).toContain(

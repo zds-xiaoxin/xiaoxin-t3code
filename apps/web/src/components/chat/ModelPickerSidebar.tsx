@@ -1,3 +1,4 @@
+import { modelPickerQuota } from "./modelPickerQuota";
 import { uiText } from "~/i18n";
 import { Toolbar } from "@base-ui/react/toolbar";
 import { type ProviderInstanceId } from "@t3tools/contracts";
@@ -40,6 +41,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
   selectableUnavailableInstanceIds?: ReadonlySet<ProviderInstanceId>;
   getDisabledInstanceTooltip?: (entry: ProviderInstanceEntry) => string;
 }) {
+  const [now] = useState(() => Date.now());
   const handleSelect = (instanceId: ProviderInstanceId | "favorites") => {
     props.onSelectInstance(instanceId);
   };
@@ -70,7 +72,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
 
   return (
     <Toolbar.Root
-      className="w-11 shrink-0 overflow-hidden bg-muted/30"
+      className="w-36 shrink-0 overflow-hidden bg-muted/30"
       data-model-picker-sidebar="true"
       aria-label={uiText("Providers")}
       orientation="vertical"
@@ -100,7 +102,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                     render={
                       <Toolbar.Button
                         className={cn(
-                          "relative isolate flex w-full cursor-pointer aspect-square items-center justify-center rounded-md transition-colors hover:bg-foreground/10 focus-visible:bg-foreground/10 focus-visible:outline-none",
+                          "relative isolate flex w-full cursor-pointer min-h-9 items-center justify-center rounded-md transition-colors hover:bg-foreground/10 focus-visible:bg-foreground/10 focus-visible:outline-none",
                         )}
                         onClick={() => handleSelect("favorites")}
                         type="button"
@@ -125,6 +127,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
           ) : null}
 
           {props.instanceEntries.map((entry) => {
+            const quota = modelPickerQuota(entry.snapshot, now);
             const isUnavailable = !isProviderInstancePickerReady(entry);
             const isContextDisabled = props.disabledInstanceIds?.has(entry.instanceId) ?? false;
             const unavailableSelectionIsReachable =
@@ -144,7 +147,7 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
             const button = (
               <Toolbar.Button
                 className={cn(
-                  "relative isolate flex w-full cursor-pointer aspect-square items-center justify-center rounded-md transition-colors hover:bg-foreground/10 focus-visible:bg-foreground/10 focus-visible:outline-none",
+                  "relative isolate flex w-full cursor-pointer min-h-9 items-center gap-2 px-2 text-left rounded-md transition-colors hover:bg-foreground/10 focus-visible:bg-foreground/10 focus-visible:outline-none",
                   isDisabled && "opacity-50 cursor-not-allowed hover:bg-transparent",
                 )}
                 data-provider-accent-color={entry.accentColor}
@@ -181,6 +184,20 @@ export const ModelPickerSidebar = memo(function ModelPickerSidebar(props: {
                   }
                   {...(entry.accentColor ? { badgeClassName: "h-3 min-w-3 px-0.5 text-5xs" } : {})}
                 />
+                <span className="flex min-w-0 flex-1 items-center gap-1">
+                  <span className="truncate text-xs">{entry.displayName}</span>
+                  {quota ? (
+                    <span
+                      data-model-picker-quota=""
+                      className={cn(
+                        "shrink-0 text-2xs text-muted-foreground",
+                        quota.low && "text-warning-foreground",
+                      )}
+                    >
+                      {quota.label}
+                    </span>
+                  ) : null}
+                </span>
               </Toolbar.Button>
             );
 

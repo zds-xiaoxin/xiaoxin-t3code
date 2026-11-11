@@ -2,7 +2,15 @@ import { uiText } from "~/i18n";
 import { usePreparedConnection } from "../../state/session";
 import type { EnvironmentId, ThreadId, WallArtifact } from "@t3tools/contracts";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, FileIcon, GlobeIcon, XIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FileIcon,
+  GlobeIcon,
+  MoreHorizontalIcon,
+  XIcon,
+} from "lucide-react";
 import {
   artifactCounts,
   artifactCheckLabel,
@@ -20,6 +28,7 @@ import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { cn } from "~/lib/utils";
 import { Dialog, DialogPopup, DialogTitle } from "../ui/dialog";
+import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 
 export function ArtifactWall({
@@ -60,6 +69,10 @@ export function ArtifactWall({
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [retry, setRetry] = useState(0);
+  // ⌘/Ctrl-click or the corner check picks up to two images to compare.
+  const [picked, setPicked] = useState<string[]>([]);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
+  const filmstrip = useRef<HTMLDivElement | null>(null);
   const loadMore = useRef<HTMLDivElement | null>(null);
   const scrollRoot = useRef<HTMLDivElement | null>(null);
   const openInEditor = useAtomCommand(shellEnvironment.openInEditor, { reportFailure: false });
@@ -107,6 +120,7 @@ export function ArtifactWall({
     setSelected(null);
     setComparison(null);
     setActionError(null);
+    setPicked([]);
   }
   const filtered = (() => artifacts.filter((a) => filter === "all" || a.kind === filter))();
   const counts = artifactCounts(artifacts);
@@ -135,6 +149,70 @@ export function ArtifactWall({
     setSplit(50);
     setCompareMode("slider");
     setThumbCount(40);
+  };
+  const togglePick = (a: WallArtifact) =>
+    setPicked((current) =>
+      current.includes(a.id)
+        ? current.filter((id) => id !== a.id)
+        : current.length >= 2
+          ? [current[1]!, a.id]
+          : [...current, a.id],
+    );
+  const openPickedCompare = () => {
+    const [first, second] = picked.map((id) => artifacts.find((a) => a.id === id));
+    if (!first || !second) return;
+    setSelected(second);
+    setComparison(first);
+    setSplit(50);
+    setCompareMode("slider");
+    setThumbCount(40);
+    setPicked([]);
+  };
+  const selectedImageIndex =
+    selected && selected.kind === "image"
+      ? images.findIndex((a) => artifactVersionKey(a) === artifactVersionKey(selected))
+      : -1;
+  const stepImage = (delta: number) => {
+    if (selectedImageIndex < 0 || images.length < 2) return;
+    const index = (selectedImageIndex + delta + images.length) % images.length;
+    const next = images[index]!;
+    setSelected(next);
+    if (comparison && artifactVersionKey(comparison) === artifactVersionKey(next)) {
+      setComparison(null);
+    }
+    setThumbCount((n) => Math.max(n, index + 20));
+  };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Arrow keys page through images while the viewer is open.
+  useEffect(() => {
+    if (selectedImageIndex < 0) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)))
+        return;
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        stepImage(event.key === "ArrowLeft" ? -1 : 1);
+      }
+    };
+    // Capture phase: the dialog's own key handling must not swallow paging.
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the current image centered in the filmstrip.
+  useEffect(() => {
+    if (!selected) return;
+    const strip = filmstrip.current;
+    const item = strip?.querySelector<HTMLElement>(
+      `[data-film-key="${CSS.escape(artifactVersionKey(selected))}"]`,
+    );
+    item?.scrollIntoView({ inline: "center", block: "nearest" });
+  }, [selected]);
+  const copyPath = async (a: WallArtifact) => {
+    try {
+      await navigator.clipboard.writeText(a.path);
+    } catch {
+      setActionError("无法复制路径");
+    }
   };
   const revisionKey = selected ? `${key}:${artifactVersionKey(selected)}` : "";
   const revisionNote = revisionNotes[revisionKey] ?? "";
@@ -329,58 +407,111 @@ export function ArtifactWall({
             <div key={group.label}>
               <p className="my-2 text-2xs text-muted-foreground">{group.label}</p>
               {media.length > 0 ? (
-                <div className="grid grid-cols-3 gap-1.5">
-                  {media.map((a) => (
-                    <div
-                      key={a.id}
-                      className="group min-w-0"
-                      draggable
-                      onDragStart={(event) => dragArtifact(event, a)}
-                      data-artifact-id={a.id}
-                    >
-                      <div className="relative aspect-square overflow-hidden rounded-md border border-border bg-muted">
-                        <Tooltip>
-                          <TooltipTrigger
-                            render={
-                              <button
-                                type="button"
-                                aria-label={
-                                  isArtifactVideo(a) ? `播放 ${a.name}` : `对比 ${a.name}`
-                                }
-                                className="block size-full cursor-pointer"
-                                onClick={() => compare(a)}
-                              />
-                            }
-                          >
-                            {thumb(a, "size-full object-cover")}
-                          </TooltipTrigger>
-                          <TooltipPopup>{artifactTooltip(a)}</TooltipPopup>
-                        </Tooltip>
-                        <span className="pointer-events-none absolute top-0.5 left-0.5 rounded-sm bg-background/90 px-1 text-2xs text-foreground">
-                          {a.extension.toUpperCase()}
-                          {isArtifactVideo(a) && durations[a.id] !== undefined
-                            ? ` · ${artifactVideoDuration(durations[a.id]!)}`
-                            : null}
-                        </span>
-                        <div className="absolute right-0 bottom-0 left-0 flex flex-wrap justify-end gap-0.5 bg-background/90 p-0.5 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100">
+                <div
+                  className="grid grid-cols-[repeat(auto-fill,minmax(7rem,1fr))] gap-2"
+                  data-artifact-media-grid
+                >
+                  {media.map((a) => {
+                    const isPicked = picked.includes(a.id);
+                    return (
+                      <div
+                        key={a.id}
+                        className="group min-w-0"
+                        draggable
+                        onDragStart={(event) => dragArtifact(event, a)}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          setMenuFor(a.id);
+                        }}
+                        data-artifact-id={a.id}
+                      >
+                        <div
+                          className={cn(
+                            "relative aspect-square overflow-hidden rounded-lg border border-border bg-muted",
+                            isPicked && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                          )}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  aria-label={
+                                    isArtifactVideo(a) ? `播放 ${a.name}` : `查看 ${a.name}`
+                                  }
+                                  className="block size-full cursor-zoom-in"
+                                  onClick={(event) => {
+                                    if (a.kind === "image" && (event.metaKey || event.ctrlKey)) {
+                                      togglePick(a);
+                                      return;
+                                    }
+                                    compare(a);
+                                  }}
+                                />
+                              }
+                            >
+                              {thumb(
+                                a,
+                                "size-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]",
+                              )}
+                            </TooltipTrigger>
+                            <TooltipPopup>{artifactTooltip(a)}</TooltipPopup>
+                          </Tooltip>
                           {a.kind === "image" ? (
-                            <Button size="xs" variant="ghost" onClick={() => compare(a)}>
-                              对比
-                            </Button>
+                            <button
+                              type="button"
+                              aria-label={isPicked ? `取消选择 ${a.name}` : `选择 ${a.name} 用于对比`}
+                              aria-pressed={isPicked}
+                              onClick={() => togglePick(a)}
+                              className={cn(
+                                "absolute top-1.5 left-1.5 flex size-5 items-center justify-center rounded-full border-2 text-white shadow-sm transition-opacity focus-visible:opacity-100",
+                                isPicked
+                                  ? "border-primary bg-primary text-primary-foreground opacity-100"
+                                  : "border-white/90 bg-black/25 opacity-0 group-hover:opacity-100",
+                              )}
+                            >
+                              {isPicked ? <CheckIcon className="size-3" strokeWidth={3} /> : null}
+                            </button>
                           ) : null}
-                          <Button
-                            size="xs"
-                            variant="ghost"
-                            onClick={() => void reveal(a)}
-                            aria-label={uiText("在 Finder 中显示 {0}", { "0": a.name })}
+                          {isArtifactVideo(a) ? (
+                            <span className="pointer-events-none absolute right-1.5 bottom-1.5 rounded bg-black/60 px-1 text-2xs text-white">
+                              ▶{" "}
+                              {durations[a.id] !== undefined
+                                ? artifactVideoDuration(durations[a.id]!)
+                                : a.extension.toUpperCase()}
+                            </span>
+                          ) : null}
+                          <Menu
+                            open={menuFor === a.id}
+                            onOpenChange={(open) => setMenuFor(open ? a.id : null)}
                           >
-                            Finder
-                          </Button>
+                            <MenuTrigger
+                              render={
+                                <button
+                                  type="button"
+                                  aria-label={`更多操作 ${a.name}`}
+                                  className="absolute top-1.5 right-1.5 flex size-6 items-center justify-center rounded-full bg-black/45 text-white opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100"
+                                />
+                              }
+                            >
+                              <MoreHorizontalIcon className="size-3.5" />
+                            </MenuTrigger>
+                            <MenuPopup align="end">
+                              <MenuItem onClick={() => void attach(a)}>附加到输入框</MenuItem>
+                              <MenuItem onClick={() => void reveal(a)}>在 Finder 中显示</MenuItem>
+                              <MenuItem onClick={() => void copyPath(a)}>复制路径</MenuItem>
+                              {a.kind === "image" ? (
+                                <MenuItem onClick={() => togglePick(a)}>
+                                  {isPicked ? "取消对比选择" : "选来对比"}
+                                </MenuItem>
+                              ) : null}
+                            </MenuPopup>
+                          </Menu>
                         </div>
+                        <p className="mt-1 truncate text-2xs text-muted-foreground">{a.name}</p>
                       </div>
-                      <p className="mt-0.5 truncate text-2xs">{a.name}</p>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : null}
               {files.length > 0 ? (
@@ -445,6 +576,21 @@ export function ArtifactWall({
           </div>
         ) : null}
       </div>
+      {picked.length > 0 ? (
+        <div className="mt-2 flex items-center justify-between gap-2 rounded-full border border-border bg-background/90 py-1 pr-1 pl-3 text-xs shadow-sm backdrop-blur">
+          <span>
+            已选 {picked.length} 张{picked.length < 2 ? " · 再选 1 张即可对比" : ""}
+          </span>
+          <span className="flex gap-1">
+            <Button size="xs" variant="ghost" onClick={() => setPicked([])}>
+              取消
+            </Button>
+            <Button size="xs" disabled={picked.length !== 2} onClick={openPickedCompare}>
+              对比
+            </Button>
+          </span>
+        </div>
+      ) : null}
       <Dialog
         open={selected !== null}
         onOpenChange={(open) => {
@@ -462,6 +608,11 @@ export function ArtifactWall({
               <DialogTitle className="min-w-0 flex-1">
                 <span className="block truncate">{selected?.name}</span>
               </DialogTitle>
+              {selectedImageIndex >= 0 && images.length > 1 ? (
+                <span className="hidden shrink-0 text-2xs text-muted-foreground sm:inline">
+                  ← → 切换 · ⇧ 点胶片对比
+                </span>
+              ) : null}
               <Button size="xs" variant="ghost" onClick={() => setSelected(null)}>
                 <XIcon className="size-3" />
                 Esc 关闭
@@ -497,6 +648,29 @@ export function ArtifactWall({
                     className="group/artifact-compare relative min-h-0 flex-1 overflow-hidden rounded-lg border border-border bg-muted"
                     data-artifact-compare
                   >
+                    {selectedImageIndex >= 0 && images.length > 1 ? (
+                      <>
+                        <button
+                          type="button"
+                          aria-label="上一张"
+                          onClick={() => stepImage(-1)}
+                          className="absolute top-1/2 left-3 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/75 text-foreground shadow-sm backdrop-blur-md transition hover:bg-background"
+                        >
+                          <ChevronLeftIcon className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          aria-label="下一张"
+                          onClick={() => stepImage(1)}
+                          className="absolute top-1/2 right-3 z-10 flex size-9 -translate-y-1/2 items-center justify-center rounded-full border border-border/60 bg-background/75 text-foreground shadow-sm backdrop-blur-md transition hover:bg-background"
+                        >
+                          <ChevronRightIcon className="size-4" />
+                        </button>
+                        <span className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-2 py-0.5 text-2xs text-white tabular-nums">
+                          {selectedImageIndex + 1} / {images.length}
+                        </span>
+                      </>
+                    ) : null}
                     {comparison ? (
                       <img
                         src={artifactFileUrl(environmentId, comparison.id) ?? undefined}
@@ -510,12 +684,13 @@ export function ArtifactWall({
                       />
                     ) : null}
                     <img
+                      key={artifactVersionKey(selected)}
                       src={
                         artifactFileUrl(environmentId, currentSelected?.id ?? selected.id) ??
                         undefined
                       }
                       alt={selected.name}
-                      className="absolute inset-0 size-full object-contain"
+                      className="artifact-viewer-image absolute inset-0 size-full object-contain"
                       style={
                         comparison
                           ? {
@@ -560,25 +735,34 @@ export function ArtifactWall({
                   <div
                     role="group"
                     aria-label="图片对比方式"
-                    className="flex shrink-0 items-center justify-center gap-1"
+                    className="mx-auto flex shrink-0 items-center gap-0.5 rounded-full bg-secondary p-0.5"
                   >
                     {(
                       [
+                        ["single", "单图"],
                         ["slider", "滑动对比"],
                         ["a", "A 全图"],
                         ["b", "B 全图"],
                       ] as const
-                    ).map(([mode, label]) => (
-                      <Button
-                        key={mode}
-                        size="xs"
-                        variant={compareMode === mode ? "secondary" : "ghost"}
-                        aria-pressed={compareMode === mode}
-                        onClick={() => setCompareMode(mode)}
-                      >
-                        {label}
-                      </Button>
-                    ))}
+                    ).map(([mode, label]) => {
+                      const on = mode !== "single" && compareMode === mode;
+                      return (
+                        <button
+                          type="button"
+                          key={mode}
+                          aria-pressed={on}
+                          onClick={() => (mode === "single" ? setComparison(null) : setCompareMode(mode))}
+                          className={cn(
+                            "rounded-full px-3 py-1 text-xs transition",
+                            on
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 ) : null}
                 {comparison ? (
@@ -589,8 +773,9 @@ export function ArtifactWall({
                 ) : null}
                 {!isArtifactVideo(selected) && (
                   <div
-                    className="flex shrink-0 gap-2 overflow-x-auto"
-                    aria-label="选择对比图片"
+                    ref={filmstrip}
+                    className="artifact-filmstrip flex shrink-0 gap-2 overflow-x-auto rounded-xl bg-secondary/70 p-2"
+                    aria-label="图片胶片条"
                     onScroll={(e) => {
                       if (
                         e.currentTarget.scrollLeft + e.currentTarget.clientWidth >=
@@ -599,24 +784,41 @@ export function ArtifactWall({
                         setThumbCount((n) => n + 40);
                     }}
                   >
-                    <Button size="xs" variant="ghost" onClick={() => setComparison(null)}>
-                      单图查看
-                    </Button>
-                    {images.slice(0, thumbCount).map((a) => (
-                      <button
-                        type="button"
-                        key={a.id}
-                        className={`size-10 shrink-0 overflow-hidden rounded-md border ${comparison?.id === a.id ? "border-primary" : "border-border"}`}
-                        aria-label={`选择对比 ${a.name}`}
-                        disabled={artifactVersionKey(a) === artifactVersionKey(selected)}
-                        onClick={() => {
-                          setComparison(a);
-                          setCompareMode("slider");
-                        }}
-                      >
-                        {thumb(a, "size-full object-cover")}
-                      </button>
-                    ))}
+                    {images.slice(0, thumbCount).map((a) => {
+                      const isCurrent = artifactVersionKey(a) === artifactVersionKey(selected);
+                      const isComparison =
+                        comparison !== null &&
+                        artifactVersionKey(a) === artifactVersionKey(comparison);
+                      return (
+                        <button
+                          type="button"
+                          key={a.id}
+                          data-film-key={artifactVersionKey(a)}
+                          className={cn(
+                            "size-12 shrink-0 overflow-hidden rounded-lg transition duration-150",
+                            isCurrent
+                              ? "scale-105 opacity-100 ring-2 ring-primary ring-offset-2 ring-offset-secondary"
+                              : isComparison
+                                ? "opacity-95 outline-2 -outline-offset-2 outline-dashed outline-primary"
+                                : "opacity-60 hover:opacity-100",
+                          )}
+                          aria-label={`查看 ${a.name}（按住 Shift 或 Option 点击设为对比图）`}
+                          aria-current={isCurrent ? "true" : undefined}
+                          onClick={(event) => {
+                            if (event.shiftKey || event.altKey) {
+                              if (isCurrent) return;
+                              setComparison(a);
+                              setCompareMode("slider");
+                              return;
+                            }
+                            setSelected(a);
+                            if (isComparison) setComparison(null);
+                          }}
+                        >
+                          {thumb(a, "size-full object-cover")}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
                 {actionError ? (

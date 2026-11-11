@@ -1,6 +1,6 @@
 # Xiaoxin T3 Code · Community Edition
 
-**Current community release: C37 · two interface styles.** Choose Current style or macOS style in Appearance → Interface. For Apple Silicon Mac.
+**Source updated to C47; current downloadable community installer: C37 · two interface styles.** Choose Current style or macOS style in Appearance → Interface. For Apple Silicon Mac.
 
 [Download C37 · macOS Apple Silicon](https://github.com/zds-xiaoxin/xiaoxin-t3code/releases/latest) · [Installation and validation scope](docs/community/c37/RELEASE.en.md) · [简体中文](README.md)
 
@@ -13,6 +13,47 @@ C37 is the Xiaoxin community release number, based on upstream `0.1.7-nightly.20
 ![Actual C37 workbench: conversation, task progress and context](assets/community/c37/01-workbench.png)
 
 _Actual C37 compiled UI with an isolated sample project and conversation; no UI redraw._
+
+## C47 source update: lighter motion, more reliable quota state
+
+**C47 source is updated and the maintainer's installation/runtime checks passed; the public installer below remains C37.** Its embedded upstream version remains `0.1.7-nightly.20261103.4119` with selected later patches. It does not claim to be upstream stable `v0.1.9`.
+
+![C47 measured component CPU comparison and installed idle verification](assets/community/c47/01-update-card-A.png)
+
+_White/black/cobalt release card with data-exact plots and an authentic native screenshot. The two reductions describe an isolated activity-strip component, not whole-app, whole-system or upstream-relative performance._
+
+| Compared with local C45 | C45 | C47 implementation | Change |
+| --- | ---: | ---: | ---: |
+| Working strip: mean renderer CPU | 4.175% | 1.175% | **71.86% lower** |
+| Working strip: mean GPU-process CPU | 7.675% | 4.425% | **42.35% lower** |
+
+Same headful Chromium window; two skins × two rounds; 8 seconds per sample; mean of four samples per version. GPU-process CPU is not GPU utilization. C47 client files are byte-identical to the measured C46 implementation. Separately, the installed C47 renderer passed an idle window of 65 samples: median **1.0%**, P95 **1.2%**. These are different workloads.
+
+### Previous public C37 → C47
+
+| Item | Published C37 evidence | C47 evidence |
+| --- | --- | --- |
+| Additional desktop skins | No Harbor / Mist | **2 new skins**, retaining the five original palettes |
+| Strict idle CPU window | Input observations made validity unconfirmed | **65 valid samples passed** |
+| New Claude events and stale cache | This fix was not included | Observation time, multiple windows, rejection and stale startup handling |
+
+The C37 idle window cannot be compared with the current idle result to claim an 80% whole-app reduction. Test counts are not speed measurements.
+
+### Compared with upstream v0.1.9
+
+| Verifiable item | Upstream v0.1.9 | C47 |
+| --- | ---: | ---: |
+| Predefined themes in the compared theme directory | 5 | **7, adding Harbor / Mist** |
+| The three selected quota boundary fixtures produce the expected mapper result | 0 / 3 | **3 / 3** |
+| Matched whole-app CPU / throughput benchmark | Not measured | **No claim of outperforming upstream** |
+
+Fixtures cover unified windows without top-level utilization, a rejected event without utilization, and a six-minute-old startup reading. This compares the corresponding pure mappers, not overall provider accuracy, upstream's complete test suite or a live-account end-to-end workflow. Upstream v0.1.9 was published on 2026-11-11; C47 does not claim that core version.
+
+[Methods, raw numbers and falsification criteria](docs/community/c47/BENCHMARK.en.md) · [Public measurement data](docs/community/c47/measurements.json)
+
+[Open the original native screenshot embedded in the card](assets/community/c47/02-themes-native.png)
+
+_Unedited packaged native C47 capture with an isolated fixture and no private accounts, balances or chats. All nine previous feature illustrations remain below, with their original version labels._
 
 ## See the workbench features
 

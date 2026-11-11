@@ -98,6 +98,7 @@ import { IntervalSecondsField } from "./IntervalSecondsField";
 import { ProviderInstanceCard } from "./ProviderInstanceCard";
 import { useSecretSources } from "./SecretSourceInput";
 import { UsageProviderSettings } from "./UsageProviderSettings";
+import { ProviderFallbackSettings } from "./ProviderFallbackSettings";
 import { ProviderSetupSection, readAntigravityAuthMethod } from "./ProviderSetupSection";
 import { ProviderAuthenticationSection } from "./ProviderAuthenticationSection";
 import { CodexSetupSection, CodexManagedRuntimeFields } from "./CodexSetupSection";
@@ -1074,6 +1075,21 @@ export function EnvironmentProviderSettings({
           </div>
         </SettingsGroup>
       </SettingsSection>
+      <ProviderFallbackSettings
+        settings={settings}
+        instances={rows.map((row) => {
+          const instance = row.explicitInstance ?? { driver: row.driver };
+          return { instanceId: row.instanceId, instance, label: providerInstanceName(instance) };
+        })}
+        selectedInstanceId={selectedRow?.instanceId}
+        canWriteSettings={canWriteSettings && !readOnly && projectIds.length === 0}
+        canManageProviders={!readOnly && projectIds.length === 0}
+        onUpdate={updateSettings}
+        onUpdateInstance={(id, instance) => {
+          const previous = settings.providerInstances[id] ?? instance;
+          updateInstance(id, previous, instance);
+        }}
+      />
       <UsageProviderSettings
         key={environmentId}
         environmentId={environmentId}

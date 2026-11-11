@@ -49,6 +49,12 @@ describe("continuation history", () => {
         "HANDOFF: /older.md",
       ),
     ).toBe("/work/with spaces/HANDOFF.md");
+    expect(
+      continuationHandoffPath(
+        "接收交接。\n交接文件：/work/with spaces/HANDOFF.md\n先完整读取上述交接文件。",
+        "HANDOFF: /older.md",
+      ),
+    ).toBe("/work/with spaces/HANDOFF.md");
     expect(continuationHandoffPath(undefined, "已完成\nHANDOFF: /last.md")).toBe("/last.md");
     expect(continuationHandoffPath("随便的 /file.md", "无交接")).toBeNull();
     expect(

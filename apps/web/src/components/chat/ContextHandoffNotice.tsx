@@ -17,6 +17,7 @@ import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { threadEnvironment } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { newMessageId, newThreadId } from "../../lib/utils";
+import { useComposerDraftStore } from "../../composerDraftStore";
 import {
   buildHandoffInstruction,
   contextRatio,
@@ -34,6 +35,10 @@ interface HandoffState {
   nextThreadId?: string;
   /** Set only after the new thread received its first message, so a failed start can retry. */
   startedNextThreadId?: string;
+  /** A persisted draft is ready, without starting a provider turn. */
+  preparedNextThreadId?: string;
+  /** Freeze the explicit scope across retries and reloads of one receiving thread. */
+  continueInstructions?: string;
 }
 function readState(key: string): HandoffState {
   try {
@@ -48,6 +53,12 @@ function readState(key: string): HandoffState {
       ...(typeof state.nextThreadId === "string" ? { nextThreadId: state.nextThreadId } : {}),
       ...(typeof state.startedNextThreadId === "string"
         ? { startedNextThreadId: state.startedNextThreadId }
+        : {}),
+      ...(typeof state.preparedNextThreadId === "string"
+        ? { preparedNextThreadId: state.preparedNextThreadId }
+        : {}),
+      ...(typeof state.continueInstructions === "string"
+        ? { continueInstructions: state.continueInstructions }
         : {}),
     };
   } catch {
@@ -93,6 +104,9 @@ export function ContextHandoffNotice({
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
+  const [continueInstructions, setContinueInstructions] = useState(
+    state.continueInstructions ?? "",
+  );
   const navigate = useNavigate();
   const { pendingSubtasks, nextThreadId } = useThreadHandoffSummary(
     scopeThreadRef(environmentId, thread.id),
@@ -257,8 +271,12 @@ export function ContextHandoffNotice({
   const continueThread = (path: string | null) =>
     runAction(async () => {
       const id = state.nextThreadId ? ThreadId.make(state.nextThreadId) : newThreadId();
-      save({ ...state, nextThreadId: id });
-      const parameters = continuationParameters(thread, id, path);
+      const instructions = state.nextThreadId
+        ? (state.continueInstructions ?? "")
+        : continueInstructions.trim();
+      const nextState = { ...state, nextThreadId: id, continueInstructions: instructions };
+      save(nextState);
+      const parameters = continuationParameters(thread, id, path, instructions);
       // Stable receipt IDs make retries after a lost response reuse the accepted operations.
       requireSuccess(
         await create({
@@ -270,6 +288,16 @@ export function ContextHandoffNotice({
           },
         }),
       );
+      if (!parameters.shouldStart) {
+        // Preparing context is not execution authorization. Only a later user send
+        // may start the receiving agent. Never overwrite an edited receiving draft.
+        const target = scopeThreadRef(environmentId, id);
+        const drafts = useComposerDraftStore.getState();
+        if (!drafts.getComposerDraft(target)?.prompt) drafts.setPrompt(target, parameters.prompt);
+        save({ ...nextState, preparedNextThreadId: id });
+        setPendingNavigationId(id);
+        return;
+      }
       requireSuccess(
         await start({
           environmentId,
@@ -291,7 +319,7 @@ export function ContextHandoffNotice({
       );
       // The new thread already exists and has its first message; a rejected settle (for
       // example a delegated result woke the old thread) must not strand the user here.
-      save({ ...state, nextThreadId: id, startedNextThreadId: id });
+      save({ ...nextState, startedNextThreadId: id });
       setPendingNavigationId(id);
       const settled = await settle({
         environmentId,
@@ -303,6 +331,7 @@ export function ContextHandoffNotice({
   const continued =
     nextThread &&
     (state.startedNextThreadId === nextThread.id ||
+      state.preparedNextThreadId === nextThread.id ||
       thread.settledOverride === "settled" ||
       state.nextThreadId === undefined);
   const compacting = projection.turnItems.some(
@@ -349,11 +378,13 @@ export function ContextHandoffNotice({
           ? "交接指令已排队，当前轮结束后执行。"
           : "正在整理交接，写好后即可开新会话。"
         : ready
-          ? "交接已写好，可在新会话继续。"
+          ? "交接已写好。默认只准备新会话草稿；填写继续事项才会执行。"
           : missing
-            ? "没找到交接文件，可重试整理或不带交接继续。"
+            ? "没找到交接文件，可重试整理或在新草稿中保留旧记录入口。"
             : continued
-              ? "任务已在新会话继续，旧记录仍保留在这里。"
+              ? state.preparedNextThreadId === nextThread?.id
+                ? "交接草稿已准备；本次未发送执行请求，等待你发出新指令。"
+                : "已交接到新会话，旧记录仍保留在这里。"
               : level !== null
                 ? ratio !== null && ratio >= 0.6
                   ? "占用偏高，仍可继续。"
@@ -459,6 +490,19 @@ export function ContextHandoffNotice({
             </Button>
           ) : (
             <div className="flex flex-wrap gap-2">
+              {!pending ? (
+                <label className="w-full space-y-1">
+                  <span>交接后继续事项（可选）</span>
+                  <textarea
+                    rows={2}
+                    className="w-full rounded-md border bg-background p-2 text-foreground"
+                    value={continueInstructions}
+                    disabled={busy || disabled || active || state.nextThreadId !== undefined}
+                    placeholder="留空只准备交接草稿，不启动任务；需要继续时写清具体事项。"
+                    onChange={(event) => setContinueInstructions(event.currentTarget.value)}
+                  />
+                </label>
+              ) : null}
               {!pending &&
                 (ready ? (
                   <Button
@@ -469,7 +513,7 @@ export function ContextHandoffNotice({
                       void continueThread(handoffPath);
                     }}
                   >
-                    开新会话继续
+                    {continueInstructions.trim() ? "交接并继续指定事项" : "准备新会话交接"}
                   </Button>
                 ) : budgetBlocked ? (
                   <>
@@ -491,7 +535,7 @@ export function ContextHandoffNotice({
                         void continueThread(null);
                       }}
                     >
-                      开新会话读取旧记录
+                      {continueInstructions.trim() ? "交接并继续指定事项" : "准备新会话读取旧记录"}
                     </Button>
                   </>
                 ) : missing ? (
@@ -515,7 +559,7 @@ export function ContextHandoffNotice({
                         void continueThread(null);
                       }}
                     >
-                      仍然开新会话（不带交接）
+                      {continueInstructions.trim() ? "交接并继续指定事项" : "准备新会话读取旧记录"}
                     </Button>
                   </>
                 ) : (

@@ -26,6 +26,7 @@ import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
 import * as Ref from "effect/Ref";
@@ -443,6 +444,257 @@ class ClaudeMcpRegistrationTimeoutError extends Schema.TaggedError<ClaudeMcpRegi
 ) {}
 
 describe("orchestration v2 provider switching", () => {
+  it.live.each([
+    "quota",
+    "all-exhausted",
+    "off",
+    "other-error",
+    "no-chain",
+    "disabled-target",
+    "native-resume",
+  ] as const)("automatically falls back only for an opted-in quota failure (%s)", (scenario) =>
+    Effect.gen(function* () {
+      const capturedTurns = yield* Ref.make<ReadonlyArray<CapturedTurn>>([]);
+      const injectedHistory = yield* Ref.make<ReadonlyArray<unknown>>([]);
+      const a = CODEX_MODEL_SELECTION;
+      const b = {
+        ...CLAUDE_MODEL_SELECTION,
+        instanceId: ProviderInstanceId.make("backup-b"),
+        ...(scenario === "native-resume" ? { model: a.model } : {}),
+      };
+      const c = { ...GROK_MODEL_SELECTION, instanceId: ProviderInstanceId.make("backup-c") };
+      const bDriver = scenario === "native-resume" ? CODEX_DRIVER : CLAUDE_DRIVER;
+      const bCapabilities =
+        scenario === "native-resume" ? CodexProviderCapabilitiesV2 : ClaudeProviderCapabilitiesV2;
+      const failure = makeProviderFailure({
+        message: "Simulated quota exhaustion",
+        code: "quota_exhausted",
+        class: scenario === "other-error" ? "provider_error" : "usage_limit",
+      });
+      const baseRegistry = ProviderAdapterRegistry.layerFromAdapters([
+        makeTestAdapter({
+          instanceId: a.instanceId,
+          driver: CODEX_DRIVER,
+          capabilities: CodexProviderCapabilitiesV2,
+          modelSelection: a,
+          responseByRunOrdinal: { 1: "Earlier answer: keep the green button." },
+          capturedTurns,
+          failedRunOrdinals: new Set([2]),
+          failure,
+        }),
+        makeTestAdapter({
+          instanceId: b.instanceId,
+          driver: bDriver,
+          capabilities: bCapabilities,
+          modelSelection: b,
+          responseByRunOrdinal: {},
+          capturedTurns,
+          injectedHistory,
+          failedRunOrdinals: scenario === "all-exhausted" ? new Set([3]) : new Set(),
+          failure,
+        }),
+        makeTestAdapter({
+          instanceId: c.instanceId,
+          driver: GROK_DRIVER,
+          capabilities: AcpProviderCapabilitiesV2,
+          modelSelection: c,
+          responseByRunOrdinal: {},
+          capturedTurns,
+          failedRunOrdinals: new Set([4]),
+          failure,
+        }),
+      ]);
+      const layerRegistry = Layer.effect(
+        ProviderAdapterRegistry.ProviderAdapterRegistryV2,
+        Effect.gen(function* () {
+          const registry = yield* ProviderAdapterRegistry.ProviderAdapterRegistryV2;
+          return {
+            ...registry,
+            getMetadata: (instanceId: ProviderInstanceId) =>
+              Effect.gen(function* () {
+                const adapter = yield* registry.get(instanceId);
+                const selection =
+                  instanceId === a.instanceId ? a : instanceId === b.instanceId ? b : c;
+                return {
+                  driver: adapter.driver,
+                  continuationKey:
+                    scenario === "native-resume" ? "shared-history" : String(instanceId),
+                  enabled: true,
+                  capabilities: yield* adapter.getCapabilities().pipe(Effect.orDie),
+                  models: [
+                    {
+                      slug: selection.model,
+                      name: selection.model,
+                      isDefault: true,
+                      isCustom: false,
+                      capabilities: null,
+                    },
+                  ],
+                };
+              }),
+          };
+        }),
+      ).pipe(Layer.provide(baseRegistry));
+      yield* Effect.gen(function* () {
+        const orchestrator = yield* Orchestrator.OrchestratorV2;
+        const worker = yield* EffectWorker.OrchestrationEffectWorkerV2;
+        const sink = yield* EventSink.EventSinkV2;
+        const dispatch = (
+          ordinal: number,
+          text: string,
+          modelSelection?: ModelSelection,
+          providerFallbackOfRunId?: import("@t3tools/contracts").RunId,
+        ) =>
+          orchestrator.dispatch({
+            type: "message.dispatch",
+            commandId: CommandId.make(`quota:${ordinal}`),
+            threadId,
+            messageId: MessageId.make(`quota:${ordinal}`),
+            text,
+            attachments: [],
+            createdBy: "user",
+            creationSource: "web",
+            dispatchMode: { type: "start_immediately" },
+            ...(modelSelection ? { modelSelection } : {}),
+            ...(providerFallbackOfRunId ? { providerFallbackOfRunId } : {}),
+          });
+        const wait = (afterSequence: number, ordinal: number) =>
+          sink.stream({ afterSequence }).pipe(
+            Stream.filter(
+              ({ event }) =>
+                event.type === "run.updated" &&
+                event.payload.ordinal === ordinal &&
+                (event.payload.status === "completed" || event.payload.status === "failed"),
+            ),
+            Stream.take(1),
+            Stream.runDrain,
+            Effect.andThen(worker.drain()),
+          );
+        yield* orchestrator.dispatch({
+          type: "thread.create",
+          commandId: CommandId.make("quota:create"),
+          threadId,
+          projectId,
+          title: "Quota fallback",
+          modelSelection: a,
+          createdBy: "user",
+          creationSource: "web",
+          runtimeMode: "full-access",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: null,
+        });
+        let sequence = yield* sink.latestSequence();
+        yield* dispatch(1, "Earlier request: preserve the green button", a);
+        yield* wait(sequence, 1);
+        sequence = yield* sink.latestSequence();
+        yield* dispatch(2, "Finish the current task", a);
+        const automatic =
+          scenario === "quota" || scenario === "all-exhausted" || scenario === "native-resume";
+        yield* wait(sequence, automatic ? (scenario === "all-exhausted" ? 4 : 3) : 2);
+        let projection = yield* orchestrator.getThreadProjection(threadId);
+        if (!automatic) {
+          const source = projection.runs.at(-1)!;
+          // The same source guard used by the terminal reaction also rejects stale/manual retries.
+          assert.isTrue(
+            Exit.isFailure(
+              yield* dispatch(3, "Finish the current task", b, source.id).pipe(Effect.exit),
+            ),
+          );
+          yield* worker.drain();
+          projection = yield* orchestrator.getThreadProjection(threadId);
+          assert.equal(projection.runs.length, 2);
+          assert.equal(projection.thread.providerInstanceId, a.instanceId);
+          assert.equal((yield* Ref.get(capturedTurns)).length, 2);
+          return;
+        }
+        const turns = yield* Ref.get(capturedTurns);
+        assert.deepEqual(
+          turns.map((turn) => turn.modelSelection.instanceId),
+          scenario === "all-exhausted"
+            ? [a.instanceId, a.instanceId, b.instanceId, c.instanceId]
+            : [a.instanceId, a.instanceId, b.instanceId],
+        );
+        assert.include(turns[2]!.text, "Finish the current task");
+        assert.equal(projection.runs[2]!.providerFallbackOfRunId, projection.runs[1]!.id);
+        assert.equal(
+          projection.thread.providerInstanceId,
+          scenario === "all-exhausted" ? c.instanceId : b.instanceId,
+        );
+        const notices = projection.turnItems.filter((item) => item.type === "system_notice");
+        assert.equal(notices.length, scenario === "all-exhausted" ? 2 : 1);
+        assert.include(
+          notices[0]!.type === "system_notice" ? notices[0]!.message : "",
+          "已自动切到",
+        );
+        if (scenario === "native-resume") {
+          assert.equal(projection.contextHandoffs.length, 0);
+          assert.equal(turns[2]!.nativeThreadId, turns[1]!.nativeThreadId);
+        } else {
+          assert.include(
+            JSON.stringify(projection.contextHandoffs),
+            "Earlier request: preserve the green button",
+          );
+          assert.include(
+            JSON.stringify(projection.contextHandoffs),
+            "Earlier answer: keep the green button",
+          );
+        }
+        if (scenario === "all-exhausted") {
+          assert.equal(projection.runs.at(-1)!.status, "failed");
+          const last = projection.runs.at(-1)!;
+          assert.isTrue(
+            Exit.isFailure(
+              yield* dispatch(5, "Finish the current task", a, last.id).pipe(Effect.exit),
+            ),
+          );
+          assert.equal((yield* orchestrator.getThreadProjection(threadId)).runs.length, 4);
+        } else {
+          sequence = yield* sink.latestSequence();
+          yield* dispatch(4, "Next user request");
+          yield* wait(sequence, 4);
+          const sticky = (yield* Ref.get(capturedTurns)).at(-1)!;
+          assert.equal(sticky.modelSelection.instanceId, b.instanceId);
+          assert.equal(
+            (yield* orchestrator.getThreadProjection(threadId)).thread.modelSelection.model,
+            b.model,
+          );
+        }
+      }).pipe(
+        Effect.provide(
+          ProviderReplayHarness.layerWithRegistry(
+            {
+              name: `quota-fallback-${scenario}`,
+              runtimePolicyOverride: {
+                cwd: yield* checkpointWorkspace(`quota-fallback-${scenario}`),
+                approvalPolicy: "never",
+                sandboxPolicy: { type: "readOnly" },
+              },
+            },
+            layerRegistry,
+            {
+              settings: {
+                providerFallbackEnabled: scenario !== "off",
+                providerFallbackChains:
+                  scenario === "no-chain"
+                    ? {}
+                    : {
+                        [a.instanceId]: [b.instanceId, c.instanceId],
+                        [b.instanceId]: [a.instanceId, c.instanceId],
+                        [c.instanceId]: [a.instanceId, b.instanceId],
+                      },
+                providerInstances: {
+                  [b.instanceId]: { driver: bDriver, enabled: scenario !== "disabled-target" },
+                  [c.instanceId]: { driver: GROK_DRIVER, enabled: scenario === "all-exhausted" },
+                },
+              },
+            },
+          ),
+        ),
+      );
+    }),
+  );
+
   it.live.each([
     "compact-native",
     "compact-legacy",

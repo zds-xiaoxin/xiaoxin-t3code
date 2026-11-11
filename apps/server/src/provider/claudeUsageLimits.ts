@@ -151,30 +151,119 @@ function makeWindow(
   };
 }
 
+const decodeUsageCache = Schema.decodeUnknownOption(
+  Schema.Struct({
+    oauthAccount: Schema.Struct({ accountUuid: Schema.String, emailAddress: Schema.String }),
+    cachedUsageUtilization: Schema.Struct({
+      accountUuid: Schema.String,
+      fetchedAtMs: Schema.Number,
+      utilization: Schema.Record(Schema.String, Schema.Unknown),
+    }),
+  }),
+);
+const decodeCachedWindow = Schema.decodeUnknownOption(
+  Schema.Struct({
+    utilization: Schema.Number,
+    resets_at: Schema.NullOr(Schema.String),
+  }),
+);
+
+// get_usage can return a disk-cache fallback without identifying it in the reply.
+export function claudeUsageProbeCheckedAt(input: {
+  readonly config: unknown;
+  readonly previousConfig?: unknown;
+  readonly accountEmail: string | undefined;
+  readonly response: Pick<SDKControlGetUsageResponse, "rate_limits_available" | "rate_limits">;
+  readonly checkedAt: string;
+}): string {
+  let observedAt = input.checkedAt;
+  for (const config of [input.previousConfig, input.config]) {
+    const decoded = decodeUsageCache(config);
+    if (Option.isNone(decoded) || !input.response.rate_limits) continue;
+    const { oauthAccount, cachedUsageUtilization: cache } = decoded.value;
+    if (
+      !input.accountEmail ||
+      oauthAccount.emailAddress.toLowerCase() !== input.accountEmail.toLowerCase() ||
+      cache.accountUuid !== oauthAccount.accountUuid ||
+      !Number.isFinite(cache.fetchedAtMs) ||
+      cache.fetchedAtMs <= 0 ||
+      cache.fetchedAtMs > Date.parse(observedAt)
+    )
+      continue;
+    let matched = false;
+    for (const id of Object.keys(WINDOWS) as Array<"five_hour" | "seven_day">) {
+      const reported = input.response.rate_limits[id];
+      if (!reported || typeof reported.utilization !== "number") continue;
+      const cached = decodeCachedWindow(cache.utilization[id]);
+      if (
+        Option.isNone(cached) ||
+        cached.value.utilization !== reported.utilization ||
+        isoFromString(cached.value.resets_at) !== isoFromString(reported.resets_at)
+      ) {
+        matched = false;
+        break;
+      }
+      matched = true;
+    }
+    if (matched) observedAt = isoFromEpochSeconds(cache.fetchedAtMs / 1000) ?? observedAt;
+  }
+  return observedAt;
+}
+
 /** Stream utilization is 0-1. Drop unnamed overage buckets until probed to avoid unreconcilable rows. */
 export function claudeRateLimitEventToUpdate(
   info: SDKRateLimitInfo,
   names: ClaudeScopedLimitNames,
 ): ProviderUsageLimitsUpdate | undefined {
   const type: string | undefined = info.rateLimitType;
-  if (!type || typeof info.utilization !== "number") {
-    return undefined;
+  const unified = (
+    info as {
+      readonly unifiedWindows?: Record<
+        string,
+        {
+          readonly utilization?: number;
+          readonly resetsAt?: number;
+          readonly status?: string;
+        }
+      >;
+    }
+  ).unifiedWindows;
+  const windows: ServerProviderUsageWindow[] = [];
+  for (const id of Object.keys(WINDOWS)) {
+    const value = unified?.[id] ?? (type === id ? info : undefined);
+    if (!value) continue;
+    const status = value.status ?? (type === id ? info.status : undefined);
+    const usedPercent =
+      status === "rejected"
+        ? 100
+        : typeof value.utilization === "number" && Number.isFinite(value.utilization)
+          ? value.utilization * 100
+          : undefined;
+    if (usedPercent !== undefined)
+      windows.push(makeWindow(id, usedPercent, isoFromEpochSeconds(value.resetsAt)));
   }
-  const usedPercent = info.utilization * 100;
-  const resetsAt = isoFromEpochSeconds(info.resetsAt);
-  if (type in WINDOWS) {
-    return { windows: [makeWindow(type, usedPercent, resetsAt)] };
+  if (
+    type === OVERAGE_INCLUDED_EVENT_TYPE &&
+    names.overageIncluded &&
+    typeof info.utilization === "number" &&
+    Number.isFinite(info.utilization)
+  ) {
+    windows.push(
+      scopedWindow(
+        names.overageIncluded,
+        info.utilization * 100,
+        isoFromEpochSeconds(info.resetsAt),
+      ),
+    );
   }
-  if (type === OVERAGE_INCLUDED_EVENT_TYPE && names.overageIncluded) {
-    return { windows: [scopedWindow(names.overageIncluded, usedPercent, resetsAt)] };
-  }
-  return undefined;
+  return windows.length > 0 ? { windows } : undefined;
 }
 
 /** get_usage percentages are already 0-100. */
 export function claudeUsageResponseToLimits(input: {
   readonly response: Pick<SDKControlGetUsageResponse, "rate_limits_available" | "rate_limits">;
   readonly checkedAt: string;
+  readonly probedAt?: string;
 }): { readonly limits: ServerProviderUsageLimits; readonly names: ClaudeScopedLimitNames } {
   const { response, checkedAt } = input;
   if (!response.rate_limits_available || !response.rate_limits) {
@@ -211,7 +300,18 @@ export function claudeUsageResponseToLimits(input: {
     });
   }
   return {
-    limits: makeUsageLimits({ checkedAt, windows }),
+    limits: {
+      ...makeUsageLimits({ checkedAt, windows }),
+      ...(input.probedAt !== undefined &&
+      Date.parse(input.probedAt) - Date.parse(checkedAt) > 5 * 60_000
+        ? {
+            unavailable: {
+              reason: "probeFailed" as const,
+              message: "Claude could not read fresh usage limits. The last reading is out of date.",
+            },
+          }
+        : {}),
+    },
     names: { overageIncluded },
   };
 }

@@ -25,6 +25,7 @@ export type SettingsPath =
   | "/settings/keybindings"
   | "/settings/snap-shot"
   | "/settings/providers"
+  | "/settings/memory"
   | "/settings/threads"
   | "/settings/browser"
   | "/settings/devices"
@@ -91,6 +92,7 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/keybindings": "Keybindings",
   "/settings/snap-shot": "SnapShots",
   "/settings/providers": "Providers",
+  "/settings/memory": "记忆",
   "/settings/threads": "Threads",
   "/settings/browser": "Browser",
   "/settings/devices": "Devices",
@@ -125,6 +127,7 @@ export const SETTINGS_NAV_GROUPS: ReadonlyArray<{
     heading: "Agent settings",
     paths: [
       "/settings/providers",
+      "/settings/memory",
       "/settings/threads",
       "/settings/browser",
       "/settings/devices",
@@ -207,6 +210,13 @@ const SOURCE_CONTROL_HOST_TERMS = sourceControlClients.definitions
   .flatMap((definition) => [definition.label, ...(definition.searchKeywords ?? [])])
   .join(" ");
 export const SETTINGS_SEARCH_ITEMS = [
+  {
+    id: "memory",
+    title: "记忆",
+    to: "/settings/memory",
+    searchTerms: ["memory", "long-term", "记忆", "待确认", "批准"],
+    targetId: "memory",
+  },
   {
     id: "workbench-change-history",
     title: "Change history",
@@ -1239,6 +1249,7 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/snap-shot": null,
   "/settings/keybindings": null,
   "/settings/providers": null,
+  "/settings/memory": null,
   "/settings/threads": null,
   "/settings/browser": null,
   "/settings/devices": null,

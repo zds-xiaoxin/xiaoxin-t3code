@@ -124,8 +124,10 @@ export function partitionProjects(input: {
   const pinned: SidebarProjectSnapshot[] = [];
   const rest: SidebarProjectSnapshot[] = [];
   for (const project of input.projects)
-    (pinAt.has(projectPinKey(project)) ? pinned : rest).push(project);
-  pinned.sort((a, b) => pinAt.get(projectPinKey(a))! - pinAt.get(projectPinKey(b))!);
+    (project.pinned || pinAt.has(projectPinKey(project)) ? pinned : rest).push(project);
+  // Server pins carry no local time, so they lead the pins made on this device.
+  const pinOrder = (project: SidebarProjectSnapshot) => pinAt.get(projectPinKey(project)) ?? 0;
+  pinned.sort((a, b) => pinOrder(a) - pinOrder(b));
   const activity = (project: SidebarProjectSnapshot) =>
     input.lastActivityByKey.get(project.projectKey) ?? 0;
   const ordered = input.sortByActivity
@@ -204,3 +206,16 @@ export function togglePinnedProjectKey(key: string) {
   );
 }
 export const getPinnedProjects = readPinned;
+
+const PROJECT_TOOLS_INLINE_STORAGE_KEY = "t3code:sidebar-project-tools-inline:v1";
+/** Shows 历史与归档 / 项目工具 above the project list instead of only behind the footer icon. */
+export function useProjectToolsInline(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => readItem(PROJECT_TOOLS_INLINE_STORAGE_KEY) === "1",
+    () => false,
+  );
+}
+export function setProjectToolsInline(inline: boolean) {
+  writeItem(PROJECT_TOOLS_INLINE_STORAGE_KEY, inline ? "1" : "0");
+}

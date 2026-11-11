@@ -20,6 +20,7 @@ import {
   ThreadId,
   ProjectId,
   type OrchestrationV2ThreadProjection,
+  type MemoryState,
   OrchestrationV2DomainEvent,
 } from "@t3tools/contracts";
 import * as Cause from "effect/Cause";
@@ -67,11 +68,11 @@ const normalize = (target: string) => {
   }
   return `/${parts.join("/")}`;
 };
-const layerWorktreeLocation = (worktreesDir = managedWorktreesDir) =>
+const layerWorktreeLocation = (worktreesDir = managedWorktreesDir, memory?: MemoryState) =>
   Layer.mergeAll(
     Path.layer,
     Layer.mock(ServerConfig.ServerConfig)({ worktreesDir } as ServerConfig.ServerConfig["Service"]),
-    ServerSettings.layerTest(),
+    ServerSettings.layerTest(memory === undefined ? {} : { memory }),
   );
 
 function startWithMissingWorktree(
@@ -269,6 +270,8 @@ it.each([
 
 function makeLocalCommandHarness(input: {
   readonly text: string;
+  readonly memory?: MemoryState;
+  readonly driver?: string;
   readonly worktreePath?: string;
   readonly worktreesDir?: string;
   readonly workspaceRoot?: string;
@@ -335,7 +338,7 @@ function makeLocalCommandHarness(input: {
   };
   const providerThread: OrchestrationV2ThreadProjection["providerThreads"][number] = {
     id: providerThreadId,
-    driver: ProviderDriverKind.make("codex"),
+    driver: ProviderDriverKind.make(input.driver ?? "codex"),
     providerInstanceId: newInstanceId,
     providerSessionId,
     appThreadId: threadId,
@@ -488,6 +491,35 @@ function makeLocalCommandHarness(input: {
       strength: "strong" as const,
     },
   };
+  const parentProviderTurn = (ordinal: number, attemptRunId: RunId) => ({
+    attempt: {
+      ...projection.attempts[0]!,
+      id: RunAttemptId.make(`side-chat-parent-attempt-${ordinal}`),
+      runId: attemptRunId,
+      providerThreadId: parentProviderThread.id,
+      status: "completed" as const,
+    },
+    turn: {
+      id: ProviderTurnId.make(`side-chat-parent-turn-${ordinal}`),
+      providerThreadId: parentProviderThread.id,
+      nodeId: rootNodeId,
+      runAttemptId: RunAttemptId.make(`side-chat-parent-attempt-${ordinal}`),
+      nativeTurnRef: {
+        driver: providerThread.driver,
+        nativeId: `side-chat-parent-native-turn-${ordinal}`,
+        strength: "strong" as const,
+      },
+      ordinal,
+      status: "completed" as const,
+      startedAt: now,
+      completedAt: now,
+    },
+  });
+  const parentRolledBackRunId = RunId.make("side-chat-parent-rolled-back-run");
+  const parentTurns = [
+    parentProviderTurn(1, parentRunId),
+    parentProviderTurn(2, parentRolledBackRunId),
+  ];
   const parentRecords = {
     ...projection,
     thread: { ...projection.thread, id: parentThreadId },
@@ -498,8 +530,18 @@ function makeLocalCommandHarness(input: {
         threadId: parentThreadId,
         ordinal: 1,
         providerThreadId: parentProviderThread.id,
-        activeAttemptId: null,
+        activeAttemptId: parentTurns[0]!.attempt.id,
         status: "completed" as const,
+        completedAt: now,
+      },
+      {
+        ...run,
+        id: parentRolledBackRunId,
+        threadId: parentThreadId,
+        ordinal: 2,
+        providerThreadId: parentProviderThread.id,
+        activeAttemptId: parentTurns[1]!.attempt.id,
+        status: "rolled_back" as const,
         completedAt: now,
       },
       ...(input.sideChat?.nativeForkFrom === "busy"
@@ -508,7 +550,7 @@ function makeLocalCommandHarness(input: {
               ...run,
               id: RunId.make("side-chat-parent-busy-run"),
               threadId: parentThreadId,
-              ordinal: 2,
+              ordinal: 3,
               providerThreadId: parentProviderThread.id,
               status: "running" as const,
             },
@@ -516,8 +558,8 @@ function makeLocalCommandHarness(input: {
         : []),
     ],
     providerThreads: [parentProviderThread],
-    attempts: [],
-    providerTurns: [],
+    attempts: parentTurns.map(({ attempt }) => attempt),
+    providerTurns: parentTurns.map(({ turn }) => turn),
     turnItems: [],
   };
   if (input.sideChat !== undefined) {
@@ -749,7 +791,9 @@ function makeLocalCommandHarness(input: {
       strength: "strong" as const,
     },
   };
-  const forkThread = vi.fn(() => Effect.succeed(sideChatThread));
+  const forkThread = vi.fn((_fork: ProviderAdapter.ProviderAdapterV2ForkThreadInput) =>
+    Effect.succeed(sideChatThread),
+  );
   const sideChatSession = {
     driver: providerThread.driver,
     providerSession,
@@ -896,7 +940,7 @@ function makeLocalCommandHarness(input: {
             }),
         }),
         IdAllocator.layer,
-        layerWorktreeLocation(input.worktreesDir),
+        layerWorktreeLocation(input.worktreesDir, input.memory),
         input.fileSystem === undefined
           ? FileSystem.layerNoop({ exists: () => Effect.succeed(true) })
           : Layer.succeed(FileSystem.FileSystem, input.fileSystem),
@@ -1273,6 +1317,10 @@ effectIt.effect.each([
       yield* harness.start;
 
       expect(harness.forkThread).toHaveBeenCalledTimes(forks ? 1 : 0);
+      // The parent's rolled-back turn is gone from its native conversation.
+      expect(
+        harness.forkThread.mock.calls[0]?.[0].sourceProviderTurns?.map((turn) => turn.id),
+      ).toEqual(forks ? ["side-chat-parent-turn-1"] : undefined);
       expect(harness.projection().contextTransfers).toMatchObject([
         { id: "side-chat-fork", status: transferStatus },
       ]);
@@ -1760,3 +1808,68 @@ for (const previousMessages of [[], ["/compact", " /COMPACT "]]) {
       }),
   );
 }
+
+effectIt.effect.each([
+  "codex",
+  "claude",
+  "cursor",
+  "grok",
+  "opencode",
+  "antigravity",
+  "kiro",
+  "workbuddy",
+])("injects only approved scoped memories before the %s driver receives a turn", (driver) =>
+  Effect.gen(function* () {
+    const memory: MemoryState = {
+      approved: [
+        {
+          id: "global",
+          text: "APPROVED_GLOBAL",
+          scope: { kind: "global" },
+          source: { kind: "user" },
+          createdAt: "2026-11-05",
+          updatedAt: "2026-11-05",
+        },
+        {
+          id: "project",
+          text: "APPROVED_PROJECT",
+          scope: { kind: "project", projectId: ProjectId.make("project-native-account-command") },
+          source: { kind: "user" },
+          createdAt: "2026-11-05",
+          updatedAt: "2026-11-05",
+        },
+        {
+          id: "other",
+          text: "OTHER_PROJECT",
+          scope: { kind: "project", projectId: ProjectId.make("unrelated") },
+          source: { kind: "user" },
+          createdAt: "2026-11-05",
+          updatedAt: "2026-11-05",
+        },
+      ],
+      pending: [
+        {
+          id: "pending",
+          text: "PENDING_UNAPPROVED",
+          scope: { kind: "global" },
+          source: { kind: "agent-proposed", threadId: ThreadId.make("thread-proposer") },
+          createdAt: "2026-11-05",
+          updatedAt: "2026-11-05",
+        },
+      ],
+    };
+    const harness = makeLocalCommandHarness({
+      text: "Continue",
+      driver,
+      memory,
+      sideChat: { contextRun: "delivered" },
+    });
+    yield* harness.start;
+    const text = harness.startTurn.mock.calls[0]?.[0].message.text;
+    expect(text).toContain("APPROVED_GLOBAL");
+    expect(text).toContain("APPROVED_PROJECT");
+    expect(text).not.toContain("OTHER_PROJECT");
+    expect(text).not.toContain("PENDING_UNAPPROVED");
+    expect(text).toContain("Continue");
+  }),
+);

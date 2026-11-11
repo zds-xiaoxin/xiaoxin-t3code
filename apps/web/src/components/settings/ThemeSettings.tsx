@@ -28,6 +28,8 @@ import {
   GROVE_THEME,
   IRIS_THEME,
   OCEAN_THEME,
+  HARBOR_THEME,
+  MIST_THEME,
 } from "../../themePalette";
 import {
   AlertDialog,
@@ -55,6 +57,8 @@ import {
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
+  HARBOR_THEME,
+  MIST_THEME,
   T3_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,

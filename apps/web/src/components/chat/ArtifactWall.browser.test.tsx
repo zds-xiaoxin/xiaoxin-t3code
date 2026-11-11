@@ -66,7 +66,7 @@ describe("ArtifactWall video filter", () => {
     });
   });
 
-  it("shows images and videos as a 3-column thumbnail grid and documents as list rows", async () => {
+  it("shows images and videos as a thumbnail grid and documents as list rows", async () => {
     await using screen = await render(
       <ArtifactWall
         environmentId={"environment-local" as EnvironmentId}
@@ -78,7 +78,7 @@ describe("ArtifactWall video filter", () => {
     await vi.waitFor(() => {
       expect(screen.container.querySelectorAll("[data-artifact-id]").length).toBe(5);
     });
-    const grid = screen.container.querySelector(".grid-cols-3")!;
+    const grid = screen.container.querySelector("[data-artifact-media-grid]")!;
     expect(
       [...grid.querySelectorAll("[data-artifact-id]")].map((n) =>
         n.getAttribute("data-artifact-id"),
@@ -116,7 +116,7 @@ describe("ArtifactWall revision drafts", () => {
       onRevise: vi.fn(() => true),
     };
     await using screen = await render(<ArtifactWall {...props} />, { router: false });
-    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
     await expect.element(screen.getByRole("textbox", { name: "修改意见" })).not.toBeInTheDocument();
     await screen.rerender(<ArtifactWall {...props} revisionEnabled />);
     await screen.getByRole("textbox", { name: "修改意见" }).fill("保留构图，只调整边缘");
@@ -146,8 +146,10 @@ describe("ArtifactWall revision drafts", () => {
       />,
       { router: false },
     );
-    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
-    await screen.getByRole("button", { name: "选择对比 previous.png" }).click();
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
+    await screen
+      .getByRole("button", { name: /^查看 previous\.png（/ })
+      .click({ modifiers: ["Shift"] });
     const slider = document.querySelector<HTMLInputElement>('[aria-label="拖动中线对比"]')!;
     slider.focus();
     await userEvent.keyboard("{ArrowRight}");
@@ -181,8 +183,37 @@ describe("ArtifactWall revision drafts", () => {
       .not.toBeVisible();
     await screen.getByRole("button", { name: "滑动对比", exact: true }).click();
     await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toHaveValue("51");
-    await screen.getByRole("button", { name: "单图查看" }).click();
+    await screen.getByRole("button", { name: "单图", exact: true }).click();
     await expect.element(screen.getByRole("slider")).not.toBeInTheDocument();
+  });
+
+  it("pages images with arrow keys and compares two picked thumbnails", async () => {
+    const previous = {
+      ...ARTIFACTS[0]!,
+      id: "a6",
+      name: "previous.png",
+      path: "/work/previous.png",
+    };
+    vi.mocked(loadWallArtifacts).mockResolvedValueOnce([...ARTIFACTS, previous]);
+    await using screen = await render(
+      <ArtifactWall
+        environmentId={"environment-local" as EnvironmentId}
+        threadId={"thread-1" as ThreadId}
+        onAttach={vi.fn()}
+      />,
+      { router: false },
+    );
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
+    await expect.element(screen.getByRole("heading", { name: "cover.png" })).toBeVisible();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect.element(screen.getByRole("heading", { name: "previous.png" })).toBeVisible();
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect.element(screen.getByRole("heading", { name: "cover.png" })).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await screen.getByRole("button", { name: "选择 cover.png 用于对比" }).click();
+    await screen.getByRole("button", { name: "选择 previous.png 用于对比" }).click();
+    await screen.getByRole("button", { name: "对比", exact: true }).click();
+    await expect.element(screen.getByRole("slider", { name: "拖动中线对比" })).toBeVisible();
   });
 
   it("keeps feedback when the composer is unavailable and permits retry", async () => {
@@ -197,7 +228,7 @@ describe("ArtifactWall revision drafts", () => {
       />,
       { router: false }, // The mocked wall does not navigate.
     );
-    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
     await expect.element(screen.getByRole("button", { name: "加入返工草稿" })).toBeDisabled();
     await screen.getByRole("textbox", { name: "修改意见" }).fill("修正右手边缘");
     await screen.getByRole("button", { name: "加入返工草稿" }).click();
@@ -225,10 +256,10 @@ describe("ArtifactWall revision drafts", () => {
       />,
       { router: false }, // The mocked wall does not navigate.
     );
-    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
     await screen.getByRole("textbox", { name: "修改意见" }).fill("保留构图");
     await screen.getByRole("button", { name: "Esc 关闭" }).click();
-    await screen.getByRole("button", { name: "对比 cover.png", exact: true }).click();
+    await screen.getByRole("button", { name: "查看 cover.png", exact: true }).click();
     await expect.element(screen.getByRole("textbox", { name: "修改意见" })).toHaveValue("保留构图");
   });
 });

@@ -9,6 +9,8 @@ const test = vi.hoisted(() => ({
   settle: vi.fn(),
   compact: vi.fn(),
   navigate: vi.fn(),
+  setPrompt: vi.fn(),
+  existingDraft: undefined as string | undefined,
 }));
 vi.mock("../../state/entities", () => ({
   useThreadShell: (ref: { environmentId: string; threadId: string } | null) =>
@@ -35,6 +37,18 @@ vi.mock("../../state/entities", () => ({
           ["preparing", "starting", "running", "waiting", "queued"].includes(s.runtime.status),
       ).length,
     };
+  },
+}));
+vi.mock("../../composerDraftStore", async () => ({
+  DraftId: (await import("effect/Schema")).String.pipe(
+    (await import("effect/Schema")).brand("DraftId"),
+  ),
+  useComposerDraftStore: {
+    getState: () => ({
+      getComposerDraft: () =>
+        test.existingDraft === undefined ? undefined : { prompt: test.existingDraft },
+      setPrompt: test.setPrompt,
+    }),
   },
 }));
 vi.mock("./TurnThroughputStatus", () => ({ LiveTurnThroughput: () => null }));
@@ -101,6 +115,7 @@ function setup() {
     setItem: (key: string, value: string) => storage.set(key, value),
   });
   test.shells = [shell];
+  test.existingDraft = undefined;
   for (const command of [test.create, test.start, test.settle])
     command.mockReset().mockResolvedValue({ _tag: "Success" });
   return { storage, [Symbol.dispose]: () => local[Symbol.dispose]() };
@@ -120,7 +135,9 @@ describe("handoff budget recovery", () => {
   it("shows recovery even when long-conversation reminders are disabled, without ordinary retry", async () => {
     using _setup = setup();
     await using screen = await render(probe());
-    await expect.element(screen.getByRole("button", { name: "开新会话读取旧记录" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "准备新会话读取旧记录" }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "交接到新会话", exact: true }))
       .not.toBeInTheDocument();
@@ -128,17 +145,22 @@ describe("handoff budget recovery", () => {
     expect(test.compact).toHaveBeenCalledOnce();
     expect(test.start).not.toHaveBeenCalled();
   });
-  it("creates a fresh continuation and sends recovery only there; receipts retain stable IDs", async () => {
+  it("prepares a receiving draft without starting or settling a task; navigation waits for its shell", async () => {
     using _setup = setup();
     await using screen = await render(probe());
-    await screen.getByRole("button", { name: "开新会话读取旧记录" }).click();
-    await vi.waitFor(() => expect(test.settle).toHaveBeenCalledOnce());
+    await screen.getByRole("button", { name: "准备新会话读取旧记录" }).click();
+    await vi.waitFor(() => expect(test.setPrompt).toHaveBeenCalledOnce());
     const created = test.create.mock.calls[0]![0].input;
-    const sent = test.start.mock.calls[0]![0].input;
+    const sent = {
+      threadId: created.threadId,
+      message: { text: test.setPrompt.mock.calls[0]![1] },
+    };
+    expect(test.start).not.toHaveBeenCalled();
+    expect(test.settle).not.toHaveBeenCalled();
     expect(created.continuationOfThreadId).toBe("old-thread");
     expect(created.threadId).not.toBe("old-thread");
     expect(sent.threadId).toBe(created.threadId);
-    expect(sent.commandId).toBe(`context-handoff:start:${created.threadId}`);
+    expect(sent.message.text).toContain("本次只接收交接");
     expect(sent.message.text).toContain("nextPosition");
     expect(sent.message.text).toContain("old-thread");
     expect(test.navigate).not.toHaveBeenCalled();
@@ -155,10 +177,15 @@ describe("handoff budget recovery", () => {
     using _setup = setup();
     test.start.mockRejectedValueOnce(new Error("connection lost"));
     await using screen = await render(probe());
-    await screen.getByRole("button", { name: "开新会话读取旧记录" }).click();
+    await screen
+      .getByRole("textbox", { name: "交接后继续事项（可选）" })
+      .fill("只核对B方案，不修改文件");
+    await screen.getByRole("button", { name: "交接并继续指定事项" }).click();
     await expect.element(screen.getByText("connection lost")).toBeVisible();
     expect(test.settle).not.toHaveBeenCalled();
-    await screen.getByRole("button", { name: "开新会话读取旧记录" }).click();
+    expect(test.setPrompt).not.toHaveBeenCalled();
+    expect(test.start.mock.calls[0]![0].input.message.text).toContain("只核对B方案，不修改文件");
+    await screen.getByRole("button", { name: "交接并继续指定事项" }).click();
     await vi.waitFor(() => expect(test.settle).toHaveBeenCalledOnce());
     expect(test.create.mock.calls[1]![0].input.threadId).toBe(
       test.create.mock.calls[0]![0].input.threadId,
@@ -167,10 +194,41 @@ describe("handoff budget recovery", () => {
       test.start.mock.calls[0]![0].input.commandId,
     );
   });
+  it("keeps an explicitly authorized retry scope across reload instead of reverting to draft mode", async () => {
+    using state = setup();
+    state.storage.set(
+      `t3-context-handoff:${env}:${shell.id}`,
+      JSON.stringify({
+        nextThreadId: "previously-created",
+        continueInstructions: "只核对B方案，不修改文件",
+      }),
+    );
+    await using screen = await render(probe());
+    await expect
+      .element(screen.getByRole("textbox", { name: "交接后继续事项（可选）" }))
+      .toBeDisabled();
+    await screen.getByRole("button", { name: "交接并继续指定事项" }).click();
+    await vi.waitFor(() => expect(test.start).toHaveBeenCalledOnce());
+    expect(test.start.mock.calls[0]![0].input.threadId).toBe("previously-created");
+    expect(test.start.mock.calls[0]![0].input.message.text).toContain("只核对B方案，不修改文件");
+    expect(test.setPrompt).not.toHaveBeenCalled();
+  });
+  it("preserves an existing receiving draft instead of overwriting user text", async () => {
+    using _setup = setup();
+    test.existingDraft = "用户已经写好的新要求";
+    await using screen = await render(probe());
+    await screen.getByRole("button", { name: "准备新会话读取旧记录" }).click();
+    await vi.waitFor(() => expect(test.create).toHaveBeenCalledOnce());
+    expect(test.setPrompt).not.toHaveBeenCalled();
+    expect(test.start).not.toHaveBeenCalled();
+    expect(test.settle).not.toHaveBeenCalled();
+  });
   it("keeps fresh-thread recovery available for providers without compaction", async () => {
     using _setup = setup();
     await using screen = await render(probe(fixture(), false));
-    await expect.element(screen.getByRole("button", { name: "开新会话读取旧记录" })).toBeVisible();
+    await expect
+      .element(screen.getByRole("button", { name: "准备新会话读取旧记录" }))
+      .toBeVisible();
     await expect
       .element(screen.getByRole("button", { name: "压缩当前会话" }))
       .not.toBeInTheDocument();

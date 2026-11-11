@@ -25,7 +25,7 @@ import {
   ThreadWorktreeIndicator,
   useLinkedThreadPullRequest,
 } from "./ThreadStatusIndicators";
-import { SidebarProjectTools } from "./sidebar/SidebarProjectTools";
+import { SidebarArchiveMenuItem, SidebarProjectTools } from "./sidebar/SidebarProjectTools";
 import { StickyProjectsTrigger } from "./sidebar/StickyProjectsPanel";
 import { useStickyProjectsStore } from "./sidebar/stickyProjectsStore";
 import { isProjectSticky } from "./sidebar/stickyProjects.logic";
@@ -225,6 +225,7 @@ import {
 import { sortThreads, getThreadSortTimestamp } from "@t3tools/client-runtime/state/thread-sort";
 import { SidebarChromeFooter, SidebarChromeHeader } from "./sidebar/SidebarChrome";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
+import { useProjectPin } from "~/hooks/useProjectGroupUpdate";
 import { useIsMobile } from "~/hooks/useMediaQuery";
 import { CommandDialogTrigger } from "./ui/command";
 import { useClientSettings, updateClientSettings } from "~/hooks/useSettings";
@@ -1413,6 +1414,7 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
     (settings) => settings.confirmThreadArchive,
   );
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
+  const { canPinProjectGroup, setProjectGroupPinned } = useProjectPin();
   const deleteProject = useOrchestrationCommand(projectEnvironment.delete, {
     reportFailure: false,
   });
@@ -2014,8 +2016,16 @@ const SidebarProjectItem = memo(function SidebarProjectItem(props: SidebarProjec
         };
       };
       const pinKey = projectPinKey(project);
-      const isPinned = getPinnedProjects().some((entry) => entry.key === pinKey);
-      actionHandlers.set("toggle-pinned", () => togglePinnedProjectKey(pinKey));
+      const isLocallyPinned = getPinnedProjects().some((entry) => entry.key === pinKey);
+      const isPinned = isLocallyPinned || project.pinned;
+      const canPinOnServer = canPinProjectGroup(project);
+      actionHandlers.set("toggle-pinned", () => {
+        if (isPinned) {
+          if (isLocallyPinned) togglePinnedProjectKey(pinKey);
+          if (project.pinned && canPinOnServer) setProjectGroupPinned(project, false);
+        } else if (canPinOnServer) setProjectGroupPinned(project, true);
+        else togglePinnedProjectKey(pinKey);
+      });
       const stickyIdentities = useStickyProjectsStore.getState().identities;
       const isSticky = isProjectSticky(stickyIdentities, project);
       actionHandlers.set("toggle-sticky", () => {
@@ -4417,7 +4427,23 @@ export default function LegacySidebar(props: { routeReveal: SidebarRouteReveal }
           </ThreadProviderLabelContext.Provider>
         </ThreadMoveProvider>
       </SidebarSubtasksContext.Provider>
-      <SidebarChromeFooter />
+      <SidebarChromeFooter
+        archiveSlot={
+          <SidebarArchiveMenuItem
+            openArchivedHistory={openArchivedHistory}
+            stickyProjects={
+              <StickyProjectsTrigger
+                sidebarProjects={sidebarProjects}
+                threadsByProjectKey={threadsByProjectKey}
+                activeProjectKey={activeProjectKey}
+                onSelectThread={navigateToThread}
+                onLocateProject={handleLocateProject}
+                isMobile={isMobile}
+              />
+            }
+          />
+        }
+      />
     </RevealActiveRowContext>
   );
 }

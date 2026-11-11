@@ -1,3 +1,4 @@
+import { ServerSettingsError } from "@t3tools/contracts";
 import * as StorageManagement from "./storageManagement.ts";
 import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
 import * as Context from "effect/Context";
@@ -1835,6 +1836,7 @@ export const layerWsRpc = (
           threadFind: true,
           threadFindProgressive: true,
           secretProviderSettings: true,
+          memorySettings: true,
           secretReferences: true,
           ...Option.match(scratchWorkspaceRoot, {
             onNone: () => ({}),
@@ -2326,6 +2328,10 @@ export const layerWsRpc = (
         [WS_METHODS.serverRefreshProviders]:
           /* Request instrumentation already owns the span; keep this helper in that context. */
           Effect.fnUntraced(function* (input) {
+            if (input.modelCatalogOnly === true) {
+              yield* providerRegistry.refreshModelCatalog;
+              return { providers: [] };
+            }
             if (input.refreshModels) {
               yield* providerRegistry.invalidateModelCaches({
                 instanceId: input.instanceId,
@@ -2542,7 +2548,7 @@ export const layerWsRpc = (
           serverSettings.getSettings.pipe(Effect.map(ServerSettings.redactServerSettingsForClient)),
         [WS_METHODS.serverUpdateSettings]:
           /* Request instrumentation already owns the span; keep this helper in that context. */
-          Effect.fnUntraced(function* ({ patch, providerInstanceMutation }) {
+          Effect.fnUntraced(function* ({ patch, providerInstanceMutation, memoryMutation }) {
             const deviceHosts = patch.deviceHosts
               ? yield* remoteSshDeviceHosts(patch.deviceHosts).pipe(
                   Effect.provide(deviceHostContext),
@@ -2550,8 +2556,16 @@ export const layerWsRpc = (
               : undefined;
             const nextPatch = { ...patch, ...(deviceHosts ? { deviceHosts } : {}) };
             const settings = yield* providerInstanceMutation === undefined
-              ? serverSettings.updateSettings(nextPatch)
-              : serverSettings.updateProviderInstance(providerInstanceMutation, nextPatch);
+              ? serverSettings.updateSettings(nextPatch, memoryMutation)
+              : memoryMutation === undefined
+                ? serverSettings.updateProviderInstance(providerInstanceMutation, nextPatch)
+                : Effect.fail(
+                    new ServerSettingsError({
+                      settingsPath: config.settingsPath,
+                      operation: "write-file",
+                      cause: new Error("Send memory and provider mutations separately."),
+                    }),
+                  );
             return ServerSettings.redactServerSettingsForClient(settings);
           }),
         [WS_METHODS.serverDiscoverSourceControl]: (_input) => sourceControlDiscovery.discover,

@@ -192,6 +192,21 @@ describe("settings mutation authorization", () => {
           providerInstanceMutation,
         }).pipe(Effect.flip),
       ).toMatchObject({ requiredPermission: AuthSettingsWriteScope });
+      for (const patch of [{}, { providerInstances: {} }]) {
+        expect(
+          yield* client[WS_METHODS.serverUpdateSettings]({
+            patch,
+            memoryMutation: { type: "approve", id: "proposal-1" },
+          }).pipe(Effect.flip),
+        ).toMatchObject({ requiredPermission: AuthSettingsWriteScope });
+      }
+      expect(
+        yield* client[WS_METHODS.serverUpdateSettings]({
+          patch: {},
+          providerInstanceMutation,
+          memoryMutation: { type: "approve", id: "proposal-1" },
+        }).pipe(Effect.flip),
+      ).toMatchObject({ requiredPermission: AuthSettingsWriteScope });
       expect(handled).toBe(2);
     }).pipe(Effect.scoped),
   );

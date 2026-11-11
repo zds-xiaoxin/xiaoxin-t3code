@@ -1,11 +1,110 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { claudeRateLimitEventToUpdate, claudeUsageResponseToLimits } from "./claudeUsageLimits.ts";
+import {
+  claudeRateLimitEventToUpdate,
+  claudeUsageResponseToLimits,
+  claudeUsageProbeCheckedAt,
+} from "./claudeUsageLimits.ts";
 
 const checkedAt = "2026-07-18T10:00:00.000Z";
 const noNames = { overageIncluded: undefined } as const;
 
+describe("claudeUsageProbeCheckedAt", () => {
+  const cachedAt = "2026-07-18T09:00:00.000Z";
+  const row = { utilization: 89, resets_at: "2026-07-18T11:20:00.248Z" };
+  const config = {
+    oauthAccount: { accountUuid: "account-a", emailAddress: "dev@example.com" },
+    cachedUsageUtilization: {
+      accountUuid: "account-a",
+      fetchedAtMs: Date.parse(cachedAt),
+      utilization: { five_hour: row },
+    },
+  };
+  const input = {
+    config,
+    accountEmail: "dev@example.com",
+    checkedAt,
+    response: { rate_limits_available: true, rate_limits: { five_hour: row } },
+  };
+  it("preserves the observation time only for matching account and usage data", () => {
+    expect(claudeUsageProbeCheckedAt(input)).toBe(cachedAt);
+    for (const patch of [
+      { config: undefined },
+      { config: "invalid" },
+      { accountEmail: "other@example.com" },
+      { accountEmail: undefined },
+      {
+        config: {
+          ...config,
+          cachedUsageUtilization: { ...config.cachedUsageUtilization, accountUuid: "account-b" },
+        },
+      },
+      {
+        config: {
+          ...config,
+          cachedUsageUtilization: { ...config.cachedUsageUtilization, fetchedAtMs: Number.NaN },
+        },
+      },
+      {
+        config: {
+          ...config,
+          cachedUsageUtilization: {
+            ...config.cachedUsageUtilization,
+            fetchedAtMs: Date.parse(checkedAt) + 1000,
+          },
+        },
+      },
+      { response: { rate_limits_available: false, rate_limits: null } },
+    ])
+      expect(claudeUsageProbeCheckedAt({ ...input, ...patch })).toBe(checkedAt);
+  });
+  it("accepts fresh usage, reset windows and an empty successful response", () => {
+    for (const rate_limits of [
+      { five_hour: { ...row, utilization: 100 } },
+      { five_hour: { ...row, utilization: 0, resets_at: "2026-07-18T16:20:00Z" } },
+      {},
+    ])
+      expect(
+        claudeUsageProbeCheckedAt({
+          ...input,
+          response: { rate_limits_available: true, rate_limits },
+        }),
+      ).toBe(checkedAt);
+  });
+  it("recognizes an old answer even if another session changed the cache during the query", () => {
+    const changedConfig = {
+      ...config,
+      cachedUsageUtilization: {
+        ...config.cachedUsageUtilization,
+        fetchedAtMs: Date.parse(checkedAt),
+        utilization: { five_hour: { ...row, utilization: 100 } },
+      },
+    };
+    expect(
+      claudeUsageProbeCheckedAt({ ...input, previousConfig: config, config: changedConfig }),
+    ).toBe(cachedAt);
+  });
+});
+
 describe("claudeUsageResponseToLimits", () => {
+  it("marks an expired cached startup reading unavailable instead of current quota", () => {
+    const response = {
+      rate_limits_available: true,
+      rate_limits: { five_hour: { utilization: 89, resets_at: "2026-07-18T14:39:00Z" } },
+    };
+    const stale = claudeUsageResponseToLimits({
+      response,
+      checkedAt,
+      probedAt: "2026-07-18T10:06:00Z",
+    }).limits;
+    expect(stale.unavailable?.reason).toBe("probeFailed");
+    expect(stale.checkedAt).toBe(checkedAt);
+    expect(
+      claudeUsageResponseToLimits({ response, checkedAt, probedAt: "2026-07-18T10:01:00Z" }).limits
+        .unavailable,
+    ).toBeUndefined();
+  });
+
   it("maps the session, weekly, and model-scoped weekly windows", () => {
     expect(
       claudeUsageResponseToLimits({
@@ -224,6 +323,44 @@ describe("claudeUsageResponseToLimits", () => {
 });
 
 describe("claudeRateLimitEventToUpdate", () => {
+  it("reads unified windows even when the CLI omits top-level utilization", () => {
+    const result = claudeRateLimitEventToUpdate(
+      {
+        status: "allowed",
+        rateLimitType: "five_hour",
+        unifiedWindows: {
+          five_hour: { utilization: 0.89, resetsAt: 1794396000 },
+          seven_day: { utilization: 0.64, resetsAt: 1794690000 },
+        },
+      } as Parameters<typeof claudeRateLimitEventToUpdate>[0],
+      noNames,
+    );
+    expect(result?.windows.map(({ id, usedPercent }) => ({ id, usedPercent }))).toEqual([
+      { id: "five_hour", usedPercent: 89 },
+      { id: "seven_day", usedPercent: 64 },
+    ]);
+    expect(
+      claudeRateLimitEventToUpdate(
+        {
+          status: "rejected",
+          rateLimitType: "five_hour",
+          resetsAt: 1794396000,
+        },
+        noNames,
+      )?.windows[0]?.usedPercent,
+    ).toBe(100);
+    expect(
+      claudeRateLimitEventToUpdate(
+        {
+          status: "allowed",
+          rateLimitType: "five_hour",
+          utilization: Number.NaN,
+        },
+        noNames,
+      ),
+    ).toBeUndefined();
+  });
+
   it("scales the 0–1 utilization and epoch-second reset onto the probe's window id", () => {
     expect(
       claudeRateLimitEventToUpdate(

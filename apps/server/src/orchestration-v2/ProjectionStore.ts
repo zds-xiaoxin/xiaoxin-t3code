@@ -98,6 +98,7 @@ import {
   isConversationHistoryItem,
   THREAD_HISTORY_MAX_RAW_TURNS,
   missingInterruptRequests,
+  DEFERRED_WORK_ITEM_TYPES,
   deferWorkHistoryRows,
   selectDeferredWorkPage,
   encodeThreadHistoryCursor,
@@ -2871,6 +2872,48 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                 SELECT ordinal, (SELECT MAX(ordinal) FROM user_anchors) AS latest FROM boundary
               `;
       const boundary = anchors[0]!;
+      // Folding needs whole segments, so the window would walk every item since the boundary.
+      // Non-deferrable types always keep their own row, so the window stays above the newest
+      // `tailRows` of them. Start at the latest segment start of each run that reaches that
+      // point, clamped to it so runless rows below stay in the scan.
+      const tailRows = Math.max(window.rowLimit, THREAD_HISTORY_TURN_SNAPSHOT_ROW_LIMIT);
+      const tailWorkStart = sql<{ readonly ordinal: number | null }>`
+                ${eligible}, visible_tail AS (
+                  SELECT ordinal FROM eligible
+                  WHERE ordinal >= ${boundary.ordinal}
+                    AND type NOT IN ${sql.in(DEFERRED_WORK_ITEM_TYPES)}
+                  ORDER BY ordinal DESC
+                  LIMIT ${tailRows}
+                ), tail AS (
+                  SELECT MIN(ordinal) AS ordinal FROM visible_tail HAVING COUNT(*) >= ${tailRows}
+                ), tail_runs AS (
+                  SELECT DISTINCT item.run_id
+                  FROM tail CROSS JOIN eligible AS item
+                  WHERE item.ordinal >= tail.ordinal AND item.run_id IS NOT NULL
+                )
+                SELECT MIN(MIN(COALESCE(
+                  (
+                    SELECT start.ordinal FROM eligible AS start
+                    WHERE start.run_id = tail_runs.run_id AND start.type = 'user_message'
+                      AND start.ordinal <= tail.ordinal
+                    ORDER BY start.ordinal DESC LIMIT 1
+                  ),
+                  (
+                    SELECT MIN(first.ordinal) FROM orchestration_v2_projection_turn_items AS first
+                    WHERE first.thread_id = ${threadId} AND first.run_id = tail_runs.run_id
+                  ),
+                  tail.ordinal
+                ), tail.ordinal)) AS ordinal
+                FROM tail LEFT JOIN tail_runs
+              `;
+      // A negative or fractional limit makes SQLite's LIMIT disagree with `tailRows`; keep the old start.
+      const workStart =
+        window.deferWork === true &&
+        boundary.latest !== null &&
+        Number.isSafeInteger(window.rowLimit) &&
+        window.rowLimit >= 0
+          ? Math.max(boundary.ordinal, (yield* tailWorkStart)[0]?.ordinal ?? 0)
+          : boundary.ordinal;
       return sql`
                 ${eligible}, blocked_runs AS MATERIALIZED (
                   SELECT DISTINCT run_id FROM orchestration_v2_projection_turn_items
@@ -2878,7 +2921,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     AND ${window.deferWork ? 1 : 0} = 1
                     AND run_id IN (
                       SELECT run_id FROM eligible
-                      WHERE ordinal >= ${boundary.ordinal} AND run_id IS NOT NULL
+                      WHERE ordinal >= ${workStart} AND run_id IS NOT NULL
                     )
                     AND (type IN ('run_interrupt_request', 'run_interrupt_result')
                       OR (type = 'error' AND status = 'failed' AND parent_item_id IS NULL))
@@ -2887,14 +2930,14 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     MAX(CASE WHEN type = 'user_message' THEN ordinal ELSE 0 END)
                       OVER (PARTITION BY run_id ORDER BY ordinal) AS segment,
                     CASE WHEN status = 'completed' AND (run_status = 'completed' OR attempt_status = 'superseded')
-                      AND type IN ('command_execution', 'reasoning', 'file_change', 'file_search', 'web_search', 'dynamic_tool')
+                      AND type IN ${sql.in(DEFERRED_WORK_ITEM_TYPES)}
                       AND NOT (${inlineWorkOutput})
                       AND run_id NOT IN (SELECT run_id FROM blocked_runs)
                       THEN 1 ELSE 0 END AS can_defer
                   FROM eligible AS item
                   WHERE ${window.deferWork ? 1 : 0} = 1
                     AND ${boundary.latest === null ? 0 : 1} = 1
-                    AND ordinal >= ${boundary.ordinal}
+                    AND ordinal >= ${workStart}
                 ), deferred_work AS (
                   SELECT run_id, segment, attempt_id, MIN(ordinal) AS first_ordinal,
                     MAX(ordinal) AS last_ordinal, COUNT(*) AS item_count
@@ -2929,6 +2972,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                   FROM window_items
                   WHERE ordinal >= ${boundary.ordinal}
                   ORDER BY ordinal DESC, turn_item_id DESC
+                  -- Every LIMIT here and in latest_user_turn must stay <= tailRows, or rows below workStart go missing.
                   LIMIT CASE
                     WHEN ${window.rowLimit} = 0 THEN 0
                     WHEN (SELECT row_count FROM latest_user_turn)
@@ -3218,6 +3262,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     OR (${filter.includeLatestRun === true ? 1 : 0} = 1 AND run_id = (
                       SELECT run_id FROM orchestration_v2_projection_runs
                       WHERE thread_id = ${threadId}
+                        AND (status <> 'cancelled' OR json_extract(payload_json, '$.startedAt') IS NOT NULL)
                       ORDER BY ordinal DESC
                       LIMIT 1
                     )))`
@@ -4017,6 +4062,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                   json_extract(child.payload_json, '$.lineage.relationshipToParent') = 'subagent'
                   AND json_extract(child.payload_json, '$.lineage.parentThreadId') IS NOT NULL
                   AND json_extract(child.payload_json, '$.forkedFrom.type') = 'node'
+                  ELSE 0 END
                   AND (EXISTS (
                     SELECT 1 FROM orchestration_v2_projection_runs AS requested
                     JOIN orchestration_v2_projection_subagents AS task
@@ -4039,7 +4085,6 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                       AND target_thread_id = json_extract(child.payload_json, '$.lineage.parentThreadId')
                       AND type = 'subagent_result'
                   )))
-                  ELSE 0 END
               `;
             case "runtime":
               return sql`
@@ -4671,14 +4716,14 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               WHERE thread_id = ${threadId} AND status = 'pending'
               ORDER BY created_at ASC, runtime_request_id ASC
             `,
+            // CROSS JOIN keeps empty run cohorts out of message history; the run index bounds each lookup.
             sql<PayloadRow>`
-              SELECT message.payload_json FROM orchestration_v2_projection_messages AS message
-              WHERE message.thread_id = ${threadId} AND message.streaming = 1
-                AND message.run_id IN (
-                  SELECT run_id FROM orchestration_v2_projection_runs
-                  WHERE thread_id = ${threadId}
-                    AND status IN ('queued', 'preparing', 'starting', 'running', 'waiting')
-                )
+              SELECT message.payload_json FROM orchestration_v2_projection_runs AS run
+              CROSS JOIN orchestration_v2_projection_messages AS message
+                INDEXED BY orchestration_v2_projection_messages_run_idx ON message.run_id = run.run_id
+              WHERE run.thread_id = ${threadId}
+                AND run.status IN ('queued', 'preparing', 'starting', 'running', 'waiting')
+                AND message.thread_id = ${threadId} AND message.streaming = 1
               ORDER BY message.created_at ASC, message.message_id ASC
             `,
             sql<PayloadRow>`

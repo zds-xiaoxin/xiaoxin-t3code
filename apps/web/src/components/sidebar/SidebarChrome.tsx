@@ -1,3 +1,4 @@
+import { useMemoryProposalNotification } from "../settings/useMemoryProposalNotification";
 import { uiText } from "~/i18n";
 import {
   ArrowLeftIcon,
@@ -220,7 +221,11 @@ function SidebarUtilityItem({
     </SidebarMenuItem>
   );
 }
-const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
+const SidebarUtilityMenu = memo(function SidebarUtilityMenu({
+  archiveSlot,
+}: {
+  archiveSlot?: ReactNode;
+}) {
   const navigate = useNavigate();
   const navigateToMainApp = useNavigateToMainApp();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -230,6 +235,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const pullRequestsSupported = usePullRequestsSupported();
   const legacySidebarEnabled = useLegacySidebarEnabled();
   const [moreOpen, setMoreOpen] = useState(false);
+  useMemoryProposalNotification();
   const closeMobileSidebar = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -284,6 +290,7 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
             label={uiText("Usage")}
             onClick={handleUsageClick}
           />
+          {archiveSlot}
         </>
       )}
       <SidebarThreadUndoNotice />
@@ -318,16 +325,6 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
                     {uiText("Pull Requests")}
                   </Button>
                 ) : null}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setMoreOpen(false);
-                    void navigate({ to: "/settings/providers" });
-                  }}
-                >
-                  {"\u6A21\u578B\u901A\u9053\u4E0E\u66F4\u65B0"}
-                </Button>
               </div>
             </PopoverPopup>
           </Popover>
@@ -338,12 +335,16 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   );
 });
 
-export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
+export const SidebarChromeFooter = memo(function SidebarChromeFooter({
+  archiveSlot,
+}: {
+  archiveSlot?: ReactNode;
+}) {
   return (
     <SidebarFooter>
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
-      <SidebarUtilityMenu />
+      <SidebarUtilityMenu archiveSlot={archiveSlot} />
     </SidebarFooter>
   );
 });

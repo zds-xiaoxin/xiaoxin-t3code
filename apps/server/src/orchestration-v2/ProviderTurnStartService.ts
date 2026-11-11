@@ -1,3 +1,4 @@
+import { formatMemoryContext } from "../memory/memory.ts";
 import { modelSelectionsEqual } from "@t3tools/shared/model";
 import { projectComposerContextForProvider } from "@t3tools/shared/composerContextReferences";
 import {
@@ -150,6 +151,7 @@ export const layer: Layer.Layer<
   ProviderTurnStartServiceV2,
   Effect.gen(function* () {
     const eventSink = yield* EventSink.EventSinkV2;
+    const serverSettings = yield* ServerSettings.ServerSettingsService;
     const turnAnalytics = yield* ProviderUsageAnalytics.ProviderTurnAnalytics;
     const contextHandoffService = yield* ContextHandoffService.ContextHandoffServiceV2;
     const idAllocator = yield* IdAllocator.IdAllocatorV2;
@@ -1162,10 +1164,24 @@ export const layer: Layer.Layer<
             (candidate) => candidate.ordinal > sourceRun.ordinal && isActiveRun(candidate),
           );
           if (!sourceBusy) {
+            // Rolled-back turns are no longer in the source conversation, so they cannot bound a fork.
+            const rolledBackAttemptIds = new Set(
+              sourceProjection.attempts
+                .filter((attempt) =>
+                  sourceProjection.runs.some(
+                    (candidate) =>
+                      candidate.id === attempt.runId && candidate.status === "rolled_back",
+                  ),
+                )
+                .map((attempt) => attempt.id),
+            );
             return yield* loadFromProvider(
               session.forkThread({
                 sourceProviderThread,
-                sourceProviderTurns: sourceProjection.providerTurns,
+                sourceProviderTurns: sourceProjection.providerTurns.filter(
+                  (turn) =>
+                    turn.runAttemptId === null || !rolledBackAttemptIds.has(turn.runAttemptId),
+                ),
                 targetThreadId: projection.thread.id,
                 modelSelection: run.modelSelection,
                 runtimePolicy: resolvedRuntimePolicy,
@@ -1571,6 +1587,10 @@ export const layer: Layer.Layer<
           ],
         });
       });
+      const approvedMemoryContext = formatMemoryContext(
+        (yield* serverSettings.getSettings).memory,
+        projection.thread.projectId,
+      );
       const startWithHandoffs = Effect.fn("ProviderTurnStartService.startWithHandoffs")(
         function* (turnInput: Parameters<typeof session.startTurn>[0], compact = false) {
           const nativeId = runningProviderThread.nativeThreadRef?.nativeId;
@@ -1607,7 +1627,8 @@ export const layer: Layer.Layer<
             sideChatHandoff === undefined || compact || goalCommand
               ? ""
               : sideChatHandoff.summaryText;
-          const context = [delivery.context, sideChatContext, resumeNotes]
+          const memoryContext = compact || goalCommand ? "" : approvedMemoryContext;
+          const context = [memoryContext, delivery.context, sideChatContext, resumeNotes]
             .filter((part) => part !== "")
             .join("\n\n");
           const { restartContinuationOfRunId: _resumedRunId, ...promptedInput } = turnInput;
@@ -1675,6 +1696,7 @@ export const layer: Layer.Layer<
         retryHandoff.length === 0 &&
         sideChatHandoff === undefined &&
         restartNote === "" &&
+        approvedMemoryContext === "" &&
         !noteContinuation
           ? session
           : makeDeliverySession(session, startWithHandoffs);
